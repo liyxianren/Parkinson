@@ -18,16 +18,17 @@
 // ============================================================
 
 // 后端服务器地址 (Zeabur 部署后填写)
-#define SERVER_HOST         ""                  // 例: "tremor-guard.zeabur.app"
-#define SERVER_PORT         443                 // HTTPS 端口
-#define SERVER_USE_HTTPS    true                // 使用 HTTPS
+// 请将下面的 "your-app.zeabur.app" 替换为你的实际域名
+#define SERVER_HOST         "parkinson-web.zeabur.app"  // 你的 Zeabur 域名
+#define SERVER_PORT         443                         // HTTPS 端口
+#define SERVER_USE_HTTPS    true                        // 使用 HTTPS
 
-// API 路径
-#define API_BASE_PATH       "/api/v1"
-#define API_UPLOAD_PATH     "/api/v1/data/upload"
-#define API_BATCH_PATH      "/api/v1/data/upload/batch"
-#define API_HEARTBEAT_PATH  "/api/v1/device/heartbeat"
-#define API_REGISTER_PATH   "/api/v1/device/register"
+// API 路径 - 测试接口
+#define API_BASE_PATH       "/api/test"
+#define API_UPLOAD_PATH     "/api/test/receive"         // 单条数据上传 (测试)
+#define API_BATCH_PATH      "/api/test/batch"           // 批量数据上传 (测试)
+#define API_HEARTBEAT_PATH  "/api/test/heartbeat"       // 心跳接口 (测试)
+#define API_REGISTER_PATH   "/api/test/receive"         // 设备注册 (测试)
 
 // ============================================================
 // 设备标识 (Device Identification)

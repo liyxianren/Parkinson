@@ -57,8 +57,9 @@ const char* WIFI_SSID     = "SCF-XIAOMI";     // WiFi 名称 (SSID)
 const char* WIFI_PASSWORD = "scf888888";     // WiFi 密码 (Password)
 
 // 后端服务器配置 (Backend Server Configuration)
-const char* SERVER_HOST   = "";     // 服务器地址 (e.g., "192.168.1.100" or "api.example.com")
-const int   SERVER_PORT   = 80;     // 服务器端口 (Port)
+// 请替换为你的 Zeabur 域名
+const char* SERVER_HOST   = "parkinson-web.zeabur.app";  // Zeabur 域名
+const int   SERVER_PORT   = 443;                         // HTTPS 端口
 
 // WiFi 状态
 bool wifi_connected = false;
