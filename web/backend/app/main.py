@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
-from app.api import auth, device, data, analysis, ai, report
+from app.api import auth, device, data, analysis, ai, report, test
 
 # 静态文件目录（前端构建产物）
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
@@ -79,6 +79,9 @@ app.include_router(ai.router, prefix="/api/ai", tags=["AI医生 AI Doctor"])
 
 # 报告生成
 app.include_router(report.router, prefix="/api/report", tags=["报告 Report"])
+
+# 测试接口 (ESP32 数据调试)
+app.include_router(test.router, prefix="/api/test", tags=["测试 Test"])
 
 
 # ============================================================

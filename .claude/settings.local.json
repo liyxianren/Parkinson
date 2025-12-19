@@ -3,7 +3,13 @@
     "allow": [
       "Bash(mkdir:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Tremor Guard - Parkinson''s Tremor Monitoring System\n\nFeatures:\n- ESP32-C3 + MPU6050 hardware tremor detection (4-6Hz FFT analysis)\n- WiFi connectivity with batch data upload\n- FastAPI backend with PostgreSQL database\n- Vue 3 + TypeScript frontend\n- Single-container Docker deployment for Zeabur\n- Claude AI integration for analysis assistance\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git branch:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

@@ -74,6 +74,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '设置', requiresAuth: true }
   },
   {
+    path: '/test',
+    name: 'test',
+    component: () => import('@/views/TestView.vue'),
+    meta: { title: 'ESP32 测试' }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('@/views/NotFoundView.vue'),
