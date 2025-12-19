@@ -58,7 +58,7 @@ const char* WIFI_PASSWORD = "scf888888";     // WiFi 密码 (Password)
 
 // 后端服务器配置 (Backend Server Configuration)
 // 请替换为你的 Zeabur 域名
-const char* SERVER_HOST   = "parkinson-web.zeabur.app";  // Zeabur 域名
+const char* SERVER_HOST   = "parkinson.zeabur.app";      // Zeabur 域名
 const int   SERVER_PORT   = 443;                         // HTTPS 端口
 
 // WiFi 状态

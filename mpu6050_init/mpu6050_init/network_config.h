@@ -19,7 +19,7 @@
 
 // 后端服务器地址 (Zeabur 部署后填写)
 // 请将下面的 "your-app.zeabur.app" 替换为你的实际域名
-#define SERVER_HOST         "parkinson-web.zeabur.app"  // 你的 Zeabur 域名
+#define SERVER_HOST         "parkinson.zeabur.app"      // Zeabur 域名
 #define SERVER_PORT         443                         // HTTPS 端口
 #define SERVER_USE_HTTPS    true                        // 使用 HTTPS
 
