@@ -80,6 +80,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'ESP32 测试' }
   },
   {
+    path: '/config',
+    name: 'config',
+    component: () => import('@/views/ConfigView.vue'),
+    meta: { title: '参数配置' }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('@/views/NotFoundView.vue'),

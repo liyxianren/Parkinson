@@ -125,4 +125,50 @@
 // 默认输出模式 / Default output mode
 #define TREMOR_DEFAULT_OUTPUT_MODE  TREMOR_OUTPUT_DETAILED
 
+// ============================================================
+// 运行时可配置参数 (Runtime Configurable Parameters)
+// 这些变量可通过云端配置进行修改，无需重新烧录固件
+// These variables can be modified via cloud config without reflashing
+// ============================================================
+
+// 在 tremor_detection.cpp 中定义这些变量的实际值
+// 这里仅声明 (使用 extern)
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// 运行时参数结构体
+typedef struct {
+    float rmsMin;              // RMS 下限阈值 (g)
+    float rmsMax;              // RMS 上限阈值 (g)
+    float powerThreshold;      // 功率阈值
+    float freqMin;             // 频率下限 (Hz)
+    float freqMax;             // 频率上限 (Hz)
+    float severityThresholds[4]; // 严重度分级阈值
+    int configVersion;         // 配置版本号
+} TremorRuntimeConfig;
+
+// 全局运行时配置 (定义在 tremor_detection.cpp 中)
+extern TremorRuntimeConfig tremorConfig;
+
+// 配置相关函数
+void tremorConfigInit(void);                    // 初始化默认配置
+void tremorConfigPrint(void);                   // 打印当前配置
+bool tremorConfigUpdate(const TremorRuntimeConfig* newConfig);  // 更新配置
+
+// 获取运行时参数的便捷宏 (使用运行时变量)
+#define TREMOR_RT_RMS_MIN           (tremorConfig.rmsMin)
+#define TREMOR_RT_RMS_MAX           (tremorConfig.rmsMax)
+#define TREMOR_RT_POWER_THRESHOLD   (tremorConfig.powerThreshold)
+#define TREMOR_RT_FREQ_MIN          (tremorConfig.freqMin)
+#define TREMOR_RT_FREQ_MAX          (tremorConfig.freqMax)
+#define TREMOR_RT_SEVERITY_0        (tremorConfig.severityThresholds[0])
+#define TREMOR_RT_SEVERITY_1        (tremorConfig.severityThresholds[1])
+#define TREMOR_RT_SEVERITY_2        (tremorConfig.severityThresholds[2])
+#define TREMOR_RT_SEVERITY_3        (tremorConfig.severityThresholds[3])
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif // TREMOR_CONFIG_H

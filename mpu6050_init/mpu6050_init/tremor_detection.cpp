@@ -61,6 +61,115 @@ static const char* SEVERITY_LABELS_EN[] = {
 static const float FREQ_RESOLUTION = (float)SAMPLE_RATE / FFT_SAMPLES;
 
 // ============================================================
+// 运行时配置 (Runtime Configuration)
+// ============================================================
+
+// 全局运行时配置变量 (使用默认值初始化)
+TremorRuntimeConfig tremorConfig = {
+    .rmsMin = TREMOR_RMS_MIN,                    // 2.5g
+    .rmsMax = TREMOR_RMS_MAX,                    // 5.0g
+    .powerThreshold = TREMOR_POWER_THRESHOLD,   // 0.5
+    .freqMin = TREMOR_FREQ_MIN,                 // 4.0Hz
+    .freqMax = TREMOR_FREQ_MAX,                 // 6.0Hz
+    .severityThresholds = {
+        SEVERITY_THRESHOLD_0,   // 2.5g
+        SEVERITY_THRESHOLD_1,   // 3.0g
+        SEVERITY_THRESHOLD_2,   // 3.5g
+        SEVERITY_THRESHOLD_3    // 4.0g
+    },
+    .configVersion = 0
+};
+
+void tremorConfigInit(void) {
+    // 使用编译时默认值初始化
+    tremorConfig.rmsMin = TREMOR_RMS_MIN;
+    tremorConfig.rmsMax = TREMOR_RMS_MAX;
+    tremorConfig.powerThreshold = TREMOR_POWER_THRESHOLD;
+    tremorConfig.freqMin = TREMOR_FREQ_MIN;
+    tremorConfig.freqMax = TREMOR_FREQ_MAX;
+    tremorConfig.severityThresholds[0] = SEVERITY_THRESHOLD_0;
+    tremorConfig.severityThresholds[1] = SEVERITY_THRESHOLD_1;
+    tremorConfig.severityThresholds[2] = SEVERITY_THRESHOLD_2;
+    tremorConfig.severityThresholds[3] = SEVERITY_THRESHOLD_3;
+    tremorConfig.configVersion = 0;
+
+    Serial.println("[Config] 配置已初始化为默认值");
+}
+
+void tremorConfigPrint(void) {
+    Serial.println();
+    Serial.println("[Config] 当前运行时配置:");
+    Serial.println("────────────────────────────────────");
+    Serial.print("  版本: v");
+    Serial.println(tremorConfig.configVersion);
+    Serial.println();
+    Serial.println("  检测阈值:");
+    Serial.print("    RMS 下限: ");
+    Serial.print(tremorConfig.rmsMin, 2);
+    Serial.println(" g");
+    Serial.print("    RMS 上限: ");
+    Serial.print(tremorConfig.rmsMax, 2);
+    Serial.println(" g");
+    Serial.print("    功率阈值: ");
+    Serial.println(tremorConfig.powerThreshold, 2);
+    Serial.println();
+    Serial.println("  频率范围:");
+    Serial.print("    下限: ");
+    Serial.print(tremorConfig.freqMin, 1);
+    Serial.println(" Hz");
+    Serial.print("    上限: ");
+    Serial.print(tremorConfig.freqMax, 1);
+    Serial.println(" Hz");
+    Serial.println();
+    Serial.println("  严重度阈值 (g):");
+    Serial.print("    0级 (无): < ");
+    Serial.println(tremorConfig.severityThresholds[0], 1);
+    Serial.print("    1级 (轻微): ");
+    Serial.print(tremorConfig.severityThresholds[0], 1);
+    Serial.print(" - ");
+    Serial.println(tremorConfig.severityThresholds[1], 1);
+    Serial.print("    2级 (轻度): ");
+    Serial.print(tremorConfig.severityThresholds[1], 1);
+    Serial.print(" - ");
+    Serial.println(tremorConfig.severityThresholds[2], 1);
+    Serial.print("    3级 (中度): ");
+    Serial.print(tremorConfig.severityThresholds[2], 1);
+    Serial.print(" - ");
+    Serial.println(tremorConfig.severityThresholds[3], 1);
+    Serial.print("    4级 (重度): > ");
+    Serial.println(tremorConfig.severityThresholds[3], 1);
+    Serial.println("────────────────────────────────────");
+}
+
+bool tremorConfigUpdate(const TremorRuntimeConfig* newConfig) {
+    if (newConfig == nullptr) {
+        return false;
+    }
+
+    // 验证配置值的合理性
+    if (newConfig->rmsMin <= 0 || newConfig->rmsMax <= newConfig->rmsMin) {
+        Serial.println("[Config] 错误: RMS 范围无效");
+        return false;
+    }
+    if (newConfig->freqMin <= 0 || newConfig->freqMax <= newConfig->freqMin) {
+        Serial.println("[Config] 错误: 频率范围无效");
+        return false;
+    }
+    if (newConfig->powerThreshold <= 0) {
+        Serial.println("[Config] 错误: 功率阈值无效");
+        return false;
+    }
+
+    // 更新配置
+    tremorConfig = *newConfig;
+
+    Serial.println("[Config] 配置已更新!");
+    tremorConfigPrint();
+
+    return true;
+}
+
+// ============================================================
 // 内部函数声明 (Internal Function Declarations)
 // ============================================================
 
@@ -253,12 +362,12 @@ static bool lastRmsOK = false;
 static float lastRmsValue = 0;
 
 static bool detectTremorInSpectrum(const SpectrumResult& spectrum) {
-    // 条件1: 频段功率超过阈值
-    lastPowerOK = spectrum.bandPower > TREMOR_POWER_THRESHOLD;
+    // 条件1: 频段功率超过阈值 (使用运行时配置)
+    lastPowerOK = spectrum.bandPower > TREMOR_RT_POWER_THRESHOLD;
 
-    // 条件2: 峰值频率在目标范围内 (4-6Hz)
-    lastFreqOK = (spectrum.peakFrequency >= TREMOR_FREQ_MIN) &&
-                 (spectrum.peakFrequency <= TREMOR_FREQ_MAX);
+    // 条件2: 峰值频率在目标范围内 (使用运行时配置)
+    lastFreqOK = (spectrum.peakFrequency >= TREMOR_RT_FREQ_MIN) &&
+                 (spectrum.peakFrequency <= TREMOR_RT_FREQ_MAX);
 
 #ifdef TREMOR_DEBUG_ENABLED
     Serial.println("[Tremor Debug] 检测条件:");
@@ -267,7 +376,7 @@ static bool detectTremorInSpectrum(const SpectrumResult& spectrum) {
     Serial.print(" (");
     Serial.print(spectrum.bandPower, 4);
     Serial.print(" > ");
-    Serial.print(TREMOR_POWER_THRESHOLD, 4);
+    Serial.print(TREMOR_RT_POWER_THRESHOLD, 4);
     Serial.println(")");
 
     Serial.print("  频率条件: ");
@@ -331,11 +440,11 @@ TremorResult tremorAnalyze(void) {
     }
     result.rmsAmplitude = sqrt(rms / FFT_SAMPLES);
 
-    // 步骤6: 检查 RMS 是否在有效范围内 (2.5g - 5.0g)
+    // 步骤6: 检查 RMS 是否在有效范围内 (使用运行时配置)
     lastRmsValue = result.rmsAmplitude;
 
-    // 检查上限 - 超过 5.0g 则测试无效
-    if (result.rmsAmplitude > TREMOR_RMS_MAX) {
+    // 检查上限 - 超过上限则测试无效
+    if (result.rmsAmplitude > TREMOR_RT_RMS_MAX) {
         result.outOfRange = true;
         result.valid = false;
         result.detected = false;
@@ -345,8 +454,8 @@ TremorResult tremorAnalyze(void) {
         return result;
     }
 
-    // 检查下限 - 低于 2.5g 则无震颤
-    lastRmsOK = result.rmsAmplitude >= TREMOR_RMS_MIN;
+    // 检查下限 - 低于下限则无震颤 (使用运行时配置)
+    lastRmsOK = result.rmsAmplitude >= TREMOR_RT_RMS_MIN;
 
     // 最终判断: 频谱条件 + RMS 在有效范围内
     result.detected = spectrumDetected && lastRmsOK;
@@ -384,13 +493,14 @@ TremorStats tremorGetStats(void) {
 // ============================================================
 
 int tremorCalculateSeverity(float amplitude) {
-    if (amplitude < SEVERITY_THRESHOLD_0) {
+    // 使用运行时配置的严重度阈值
+    if (amplitude < TREMOR_RT_SEVERITY_0) {
         return 0;  // 无震颤
-    } else if (amplitude < SEVERITY_THRESHOLD_1) {
+    } else if (amplitude < TREMOR_RT_SEVERITY_1) {
         return 1;  // 轻微
-    } else if (amplitude < SEVERITY_THRESHOLD_2) {
+    } else if (amplitude < TREMOR_RT_SEVERITY_2) {
         return 2;  // 轻度
-    } else if (amplitude < SEVERITY_THRESHOLD_3) {
+    } else if (amplitude < TREMOR_RT_SEVERITY_3) {
         return 3;  // 中度
     } else {
         return 4;  // 重度
@@ -439,7 +549,7 @@ void tremorPrintDetailedReport(const TremorResult& result) {
         Serial.print("  RMS 幅度: ");
         Serial.print(result.rmsAmplitude, 2);
         Serial.print("g > ");
-        Serial.print(TREMOR_RMS_MAX, 1);
+        Serial.print(TREMOR_RT_RMS_MAX, 1);
         Serial.println("g (上限)");
         Serial.println();
         Serial.println("  说明: 震动幅度超出有效检测范围，本次测试结果已抛弃。");
@@ -541,7 +651,7 @@ void tremorPrintDetailedReport(const TremorResult& result) {
         Serial.print(result.spectrum.bandPower, 2);
         if (!lastPowerOK) {
             Serial.print(" < ");
-            Serial.print(TREMOR_POWER_THRESHOLD, 1);
+            Serial.print(TREMOR_RT_POWER_THRESHOLD, 1);
         }
         Serial.println("                              │");
 
@@ -552,7 +662,11 @@ void tremorPrintDetailedReport(const TremorResult& result) {
         Serial.print(result.frequency, 2);
         Serial.print("Hz");
         if (!lastFreqOK) {
-            Serial.print(" (不在4-6Hz)");
+            Serial.print(" (不在");
+            Serial.print(TREMOR_RT_FREQ_MIN, 0);
+            Serial.print("-");
+            Serial.print(TREMOR_RT_FREQ_MAX, 0);
+            Serial.print("Hz)");
         }
         Serial.println("                           │");
 
@@ -564,16 +678,16 @@ void tremorPrintDetailedReport(const TremorResult& result) {
         Serial.print("g");
         if (!lastRmsOK) {
             Serial.print(" < ");
-            Serial.print(TREMOR_RMS_MIN, 1);
+            Serial.print(TREMOR_RT_RMS_MIN, 1);
             Serial.print("g (下限)");
         }
         Serial.println("                     │");
 
         Serial.println("  │                                                              │");
         Serial.print("  │   有效范围: ");
-        Serial.print(TREMOR_RMS_MIN, 1);
+        Serial.print(TREMOR_RT_RMS_MIN, 1);
         Serial.print("g - ");
-        Serial.print(TREMOR_RMS_MAX, 1);
+        Serial.print(TREMOR_RT_RMS_MAX, 1);
         Serial.println("g                                  │");
         Serial.println("  │   说明: RMS需在有效范围内且满足频谱条件才判定为震颤          │");
         Serial.println("  └──────────────────────────────────────────────────────────────┘");
@@ -604,7 +718,7 @@ void tremorPrintSimpleResult(const TremorResult& result) {
         Serial.print("⚠ 测试无效 (RMS:");
         Serial.print(result.rmsAmplitude, 1);
         Serial.print("g > ");
-        Serial.print(TREMOR_RMS_MAX, 1);
+        Serial.print(TREMOR_RT_RMS_MAX, 1);
         Serial.println("g)");
     } else if (result.detected) {
         Serial.print("● ");

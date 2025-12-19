@@ -48,6 +48,7 @@
 #include "wifi_manager.h"
 #include "http_client.h"
 #include "data_uploader.h"
+#include "config_sync.h"
 
 // ============================================================================
 // WiFi 配置 (WiFi Configuration)
@@ -57,9 +58,7 @@ const char* WIFI_SSID     = "SCF-XIAOMI";     // WiFi 名称 (SSID)
 const char* WIFI_PASSWORD = "scf888888";     // WiFi 密码 (Password)
 
 // 后端服务器配置 (Backend Server Configuration)
-// 请替换为你的 Zeabur 域名
-const char* SERVER_HOST   = "parkinson.zeabur.app";      // Zeabur 域名
-const int   SERVER_PORT   = 443;                         // HTTPS 端口
+// 服务器地址在 network_config.h 中定义 (SERVER_HOST, SERVER_PORT)
 
 // WiFi 状态
 bool wifi_connected = false;
@@ -229,6 +228,10 @@ void printHelp(void) {
     Serial.println("  upload   - 显示上传状态/手动上传");
     Serial.println("  flush    - 强制上传所有缓存数据");
     Serial.println("  server   - 显示服务器配置");
+    Serial.println();
+    Serial.println("  [配置命令]");
+    Serial.println("  update   - 从云端拉取最新配置");
+    Serial.println("  config   - 显示当前运行时配置");
     Serial.println();
     Serial.println("  help     - 显示此帮助信息");
     Serial.println("==========================================");
@@ -432,6 +435,34 @@ void processCommand(String cmd) {
         Serial.print("  HTTP已配置: ");
         Serial.println(httpIsConfigured() ? "是" : "否");
         Serial.println("────────────────────────────────────");
+
+    // ========================================
+    // 配置相关命令
+    // ========================================
+    } else if (cmd == "update") {
+        // 从云端拉取最新配置
+        if (!wifiIsConnected()) {
+            Serial.println("[Update] 错误: WiFi 未连接");
+            Serial.println("         请先执行 connect 命令连接WiFi");
+        } else if (!httpIsConfigured()) {
+            Serial.println("[Update] 错误: 服务器未配置");
+        } else {
+            Serial.println("[Update] 正在从云端拉取配置...");
+            ConfigSyncStatus status = configSyncFromCloud();
+
+            if (status == SYNC_SUCCESS) {
+                Serial.println("[Update] 配置已更新，新参数立即生效!");
+            } else if (status == SYNC_NO_UPDATE) {
+                Serial.println("[Update] 配置已是最新版本");
+            } else {
+                Serial.print("[Update] 同步失败: ");
+                Serial.println(configSyncGetStatusLabel(status));
+            }
+        }
+
+    } else if (cmd == "config") {
+        // 显示当前运行时配置
+        tremorConfigPrint();
 
     } else if (cmd == "help" || cmd == "?") {
         // 显示帮助
@@ -995,6 +1026,9 @@ void setup() {
     // 初始化震颤检测模块
     tremorInit();
     tremorSetSensorCallback(sensorReadAdapter);
+
+    // 初始化配置同步模块
+    configSyncInit();
 
     // ----------------------------------------
     // 网络初始化 (WiFi + HTTP + Uploader)
