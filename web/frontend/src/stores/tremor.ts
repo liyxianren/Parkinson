@@ -53,7 +53,7 @@ export const useTremorStore = defineStore('tremor', () => {
     currentSession.value = session
   }
 
-  async function fetchSessions(limit = 20) {
+  async function fetchSessions(_limit = 20) {
     loading.value = true
     try {
       // TODO: 调用 API 获取会话列表
@@ -63,7 +63,7 @@ export const useTremorStore = defineStore('tremor', () => {
     }
   }
 
-  async function fetchDailyStats(date?: Date) {
+  async function fetchDailyStats(_date?: Date) {
     loading.value = true
     try {
       // TODO: 调用 API 获取每日统计
