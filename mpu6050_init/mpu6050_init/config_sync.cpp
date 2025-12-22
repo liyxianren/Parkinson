@@ -212,3 +212,85 @@ void configSyncPrintStatus(void) {
 
     Serial.println("────────────────────────────────────");
 }
+
+// ============================================================
+// 上传配置到云端 (Upload Config to Cloud)
+// ============================================================
+
+ConfigSyncStatus configSyncUploadToCloud(void) {
+    Serial.println();
+    Serial.println("[ConfigSync] 正在上传配置到云端...");
+
+    // 检查 WiFi
+    if (!wifiIsConnected()) {
+        Serial.println("[ConfigSync] 错误: WiFi 未连接");
+        return SYNC_NO_WIFI;
+    }
+
+    // 检查服务器配置
+    if (!httpIsConfigured()) {
+        Serial.println("[ConfigSync] 错误: 服务器未配置");
+        return SYNC_HTTP_ERROR;
+    }
+
+    // 构建 JSON 请求体
+    JsonDocument doc;
+    doc["device_id"] = DEVICE_ID;
+    doc["config_version"] = tremorConfig.configVersion;
+    doc["rms_min"] = tremorConfig.rmsMin;
+    doc["rms_max"] = tremorConfig.rmsMax;
+    doc["power_threshold"] = tremorConfig.powerThreshold;
+    doc["freq_min"] = tremorConfig.freqMin;
+    doc["freq_max"] = tremorConfig.freqMax;
+
+    JsonArray thresholds = doc["severity_thresholds"].to<JsonArray>();
+    thresholds.add(tremorConfig.severityThresholds[0]);
+    thresholds.add(tremorConfig.severityThresholds[1]);
+    thresholds.add(tremorConfig.severityThresholds[2]);
+    thresholds.add(tremorConfig.severityThresholds[3]);
+
+    Serial.print("[ConfigSync] 请求: POST ");
+    Serial.println("/api/config/upload");
+
+    // 发送 POST 请求
+    HttpResponse response = httpPostJson("/api/config/upload", doc);
+
+    if (!response.success) {
+        Serial.print("[ConfigSync] HTTP 请求失败: ");
+        Serial.println(response.errorMessage);
+        return SYNC_HTTP_ERROR;
+    }
+
+    // 解析响应
+    JsonDocument respDoc;
+    DeserializationError error = deserializeJson(respDoc, response.body);
+
+    if (error) {
+        Serial.print("[ConfigSync] 响应解析失败: ");
+        Serial.println(error.c_str());
+        return SYNC_PARSE_ERROR;
+    }
+
+    // 获取响应信息
+    int cloudVersion = respDoc["cloud_version"] | 0;
+    bool needUpdate = respDoc["need_update"] | false;
+
+    Serial.println("[ConfigSync] ✓ 配置上传成功!");
+    Serial.print("  设备版本: v");
+    Serial.println(tremorConfig.configVersion);
+    Serial.print("  云端版本: v");
+    Serial.println(cloudVersion);
+
+    if (needUpdate) {
+        Serial.println();
+        Serial.println("[ConfigSync] 提示: 云端有新配置，请执行 update 命令同步");
+    } else {
+        Serial.println("[ConfigSync] 设备配置已是最新");
+    }
+
+    lastSyncTime = millis();
+    syncCount++;
+    lastSyncStatus = SYNC_SUCCESS;
+
+    return SYNC_SUCCESS;
+}

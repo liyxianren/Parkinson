@@ -63,4 +63,12 @@ const char* configSyncGetStatusLabel(ConfigSyncStatus status);
  */
 void configSyncPrintStatus(void);
 
+/**
+ * 上传当前配置到云端
+ * Upload current config to cloud
+ *
+ * @return ConfigSyncStatus 上传状态
+ */
+ConfigSyncStatus configSyncUploadToCloud(void);
+
 #endif // CONFIG_SYNC_H

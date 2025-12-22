@@ -230,6 +230,7 @@ void printHelp(void) {
     Serial.println("  server   - 显示服务器配置");
     Serial.println();
     Serial.println("  [配置命令]");
+    Serial.println("  cfgup    - 上传当前配置到云端");
     Serial.println("  update   - 从云端拉取最新配置");
     Serial.println("  config   - 显示当前运行时配置");
     Serial.println();
@@ -439,6 +440,24 @@ void processCommand(String cmd) {
     // ========================================
     // 配置相关命令
     // ========================================
+    } else if (cmd == "cfgup") {
+        // 上传当前配置到云端
+        if (!wifiIsConnected()) {
+            Serial.println("[ConfigUp] 错误: WiFi 未连接");
+            Serial.println("           请先执行 connect 命令连接WiFi");
+        } else if (!httpIsConfigured()) {
+            Serial.println("[ConfigUp] 错误: 服务器未配置");
+        } else {
+            ConfigSyncStatus status = configSyncUploadToCloud();
+
+            if (status == SYNC_SUCCESS) {
+                Serial.println("[ConfigUp] 配置上传完成!");
+            } else {
+                Serial.print("[ConfigUp] 上传失败: ");
+                Serial.println(configSyncGetStatusLabel(status));
+            }
+        }
+
     } else if (cmd == "update") {
         // 从云端拉取最新配置
         if (!wifiIsConnected()) {

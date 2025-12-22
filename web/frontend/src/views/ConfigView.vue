@@ -1,20 +1,27 @@
 <template>
   <div class="min-h-screen bg-gray-900 text-white p-6">
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-5xl mx-auto">
       <!-- 页面标题 -->
       <div class="flex items-center justify-between mb-6">
         <div>
           <h1 class="text-3xl font-bold text-cyan-400">参数配置</h1>
-          <p class="text-gray-400 mt-1">调整震颤检测算法的关键参数</p>
+          <p class="text-gray-400 mt-1">调整震颤检测算法的关键参数 (上位机模式)</p>
         </div>
         <div class="flex gap-3">
           <button
-            @click="resetToDefaults"
+            @click="refreshStatus"
+            :disabled="loading"
             class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg flex items-center gap-2"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5" :class="{ 'animate-spin': loading }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
+            刷新
+          </button>
+          <button
+            @click="resetToDefaults"
+            class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg"
+          >
             恢复默认
           </button>
           <button
@@ -25,31 +32,139 @@
             <svg v-if="!saving" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
-            <svg v-else class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg v-else class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
             </svg>
             保存配置
           </button>
         </div>
       </div>
 
-      <!-- 版本信息 -->
-      <div class="bg-gray-800 rounded-lg p-4 mb-6">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-4">
-            <div>
-              <span class="text-gray-400 text-sm">配置版本:</span>
-              <span class="ml-2 text-cyan-400 font-mono">v{{ configVersion }}</span>
+      <!-- 状态卡片 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <!-- 设备状态 -->
+        <div class="bg-gray-800 rounded-lg p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold text-cyan-400">设备状态</h2>
+            <span
+              :class="deviceStatus.connected ? 'bg-green-600' : 'bg-gray-600'"
+              class="px-2 py-1 rounded text-xs"
+            >
+              {{ deviceStatus.connected ? '已连接' : '未连接' }}
+            </span>
+          </div>
+          <div v-if="deviceStatus.connected" class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-400">设备 ID:</span>
+              <span class="font-mono text-green-400">{{ deviceStatus.device_id }}</span>
             </div>
-            <div>
-              <span class="text-gray-400 text-sm">更新时间:</span>
-              <span class="ml-2 text-gray-300 font-mono">{{ formatTime(updatedAt) }}</span>
+            <div class="flex justify-between">
+              <span class="text-gray-400">设备 IP:</span>
+              <span class="font-mono">{{ deviceStatus.ip }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-400">配置版本:</span>
+              <span class="font-mono">v{{ deviceStatus.version }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-400">最后上报:</span>
+              <span class="font-mono">{{ formatTime(deviceStatus.last_seen) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-400">同步状态:</span>
+              <span :class="deviceStatus.synced ? 'text-green-400' : 'text-yellow-400'">
+                {{ deviceStatus.synced ? '已同步' : '待同步' }}
+              </span>
             </div>
           </div>
-          <div class="text-sm text-gray-400">
-            ESP32 串口输入 <code class="bg-gray-700 px-2 py-1 rounded text-cyan-400">update</code> 拉取新配置
+          <div v-else class="text-gray-500 text-sm">
+            <p>等待设备连接...</p>
+            <p class="mt-2 text-xs">设备需执行 <code class="bg-gray-700 px-1 rounded">cfgup</code> 命令上传配置</p>
           </div>
+        </div>
+
+        <!-- 云端配置状态 -->
+        <div class="bg-gray-800 rounded-lg p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold text-yellow-400">云端配置</h2>
+            <span class="bg-blue-600 px-2 py-1 rounded text-xs">
+              v{{ cloudStatus.version }}
+            </span>
+          </div>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-400">配置来源:</span>
+              <span class="font-mono">{{ getSourceLabel(cloudStatus.source) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-400">更新时间:</span>
+              <span class="font-mono">{{ formatTime(cloudStatus.updated_at) }}</span>
+            </div>
+          </div>
+          <div class="mt-4 p-3 bg-gray-700 rounded text-xs">
+            <p class="text-gray-400 mb-2">使用流程:</p>
+            <ol class="list-decimal list-inside space-y-1 text-gray-300">
+              <li>设备执行 <code class="bg-gray-600 px-1 rounded">cfgup</code> 上传当前配置</li>
+              <li>在此页面修改参数并保存</li>
+              <li>设备执行 <code class="bg-gray-600 px-1 rounded">update</code> 拉取新配置</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <!-- 配置对比 (如果设备已连接) -->
+      <div v-if="deviceStatus.connected && deviceStatus.params" class="bg-gray-800 rounded-lg p-4 mb-6">
+        <h2 class="text-lg font-semibold text-purple-400 mb-3">配置对比</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-700 text-left">
+              <tr>
+                <th class="p-2">参数</th>
+                <th class="p-2 text-green-400">设备当前值</th>
+                <th class="p-2 text-yellow-400">云端配置值</th>
+                <th class="p-2">状态</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t border-gray-700">
+                <td class="p-2">RMS 下限</td>
+                <td class="p-2 font-mono">{{ deviceStatus.params.rms_min?.toFixed(2) }} g</td>
+                <td class="p-2 font-mono">{{ config.rms_min.toFixed(2) }} g</td>
+                <td class="p-2">
+                  <span v-if="deviceStatus.params.rms_min === config.rms_min" class="text-green-400">✓</span>
+                  <span v-else class="text-yellow-400">≠</span>
+                </td>
+              </tr>
+              <tr class="border-t border-gray-700">
+                <td class="p-2">RMS 上限</td>
+                <td class="p-2 font-mono">{{ deviceStatus.params.rms_max?.toFixed(2) }} g</td>
+                <td class="p-2 font-mono">{{ config.rms_max.toFixed(2) }} g</td>
+                <td class="p-2">
+                  <span v-if="deviceStatus.params.rms_max === config.rms_max" class="text-green-400">✓</span>
+                  <span v-else class="text-yellow-400">≠</span>
+                </td>
+              </tr>
+              <tr class="border-t border-gray-700">
+                <td class="p-2">功率阈值</td>
+                <td class="p-2 font-mono">{{ deviceStatus.params.power_threshold?.toFixed(2) }}</td>
+                <td class="p-2 font-mono">{{ config.power_threshold.toFixed(2) }}</td>
+                <td class="p-2">
+                  <span v-if="deviceStatus.params.power_threshold === config.power_threshold" class="text-green-400">✓</span>
+                  <span v-else class="text-yellow-400">≠</span>
+                </td>
+              </tr>
+              <tr class="border-t border-gray-700">
+                <td class="p-2">频率范围</td>
+                <td class="p-2 font-mono">{{ deviceStatus.params.freq_min?.toFixed(1) }} - {{ deviceStatus.params.freq_max?.toFixed(1) }} Hz</td>
+                <td class="p-2 font-mono">{{ config.freq_min.toFixed(1) }} - {{ config.freq_max.toFixed(1) }} Hz</td>
+                <td class="p-2">
+                  <span v-if="deviceStatus.params.freq_min === config.freq_min && deviceStatus.params.freq_max === config.freq_max" class="text-green-400">✓</span>
+                  <span v-else class="text-yellow-400">≠</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -235,14 +350,14 @@
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
-        配置已保存 (版本 v{{ configVersion }})
+        配置已保存 (版本 v{{ cloudStatus.version }})
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 
 interface TremorConfig {
@@ -254,6 +369,23 @@ interface TremorConfig {
   severity_thresholds: number[]
 }
 
+interface DeviceStatus {
+  connected: boolean
+  version: number
+  last_seen: string | null
+  ip: string | null
+  device_id: string | null
+  params: TremorConfig | null
+  synced: boolean
+}
+
+interface CloudStatus {
+  version: number
+  updated_at: string
+  source: string
+  params: TremorConfig
+}
+
 const config = reactive<TremorConfig>({
   rms_min: 2.5,
   rms_max: 5.0,
@@ -263,8 +395,24 @@ const config = reactive<TremorConfig>({
   severity_thresholds: [2.5, 3.0, 3.5, 4.0]
 })
 
-const configVersion = ref(1)
-const updatedAt = ref('')
+const deviceStatus = reactive<DeviceStatus>({
+  connected: false,
+  version: 0,
+  last_seen: null,
+  ip: null,
+  device_id: null,
+  params: null,
+  synced: false
+})
+
+const cloudStatus = reactive<CloudStatus>({
+  version: 1,
+  updated_at: '',
+  source: 'default',
+  params: { ...config }
+})
+
+const loading = ref(false)
 const saving = ref(false)
 const saveSuccess = ref(false)
 
@@ -272,18 +420,38 @@ const severityLabels = ['无/极轻', '轻微', '轻度', '中度']
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || '/api'
 
-async function loadConfig() {
+let refreshInterval: number | null = null
+
+async function loadStatus() {
   try {
-    const response = await axios.get(`${apiBase}/config/current`)
+    const response = await axios.get(`${apiBase}/config/status`)
     const data = response.data
 
-    configVersion.value = data.version
-    updatedAt.value = data.updated_at
+    // 更新云端状态
+    cloudStatus.version = data.cloud.version
+    cloudStatus.updated_at = data.cloud.updated_at
+    cloudStatus.source = data.cloud.source
+    Object.assign(config, data.cloud.params)
 
-    // 更新配置
-    Object.assign(config, data.params)
+    // 更新设备状态
+    deviceStatus.connected = data.device.connected
+    deviceStatus.version = data.device.version
+    deviceStatus.last_seen = data.device.last_seen
+    deviceStatus.ip = data.device.ip
+    deviceStatus.device_id = data.device.device_id
+    deviceStatus.params = data.device.params
+    deviceStatus.synced = data.device.synced
   } catch (error) {
-    console.error('加载配置失败:', error)
+    console.error('加载状态失败:', error)
+  }
+}
+
+async function refreshStatus() {
+  loading.value = true
+  try {
+    await loadStatus()
+  } finally {
+    loading.value = false
   }
 }
 
@@ -299,8 +467,12 @@ async function saveConfig() {
       severity_thresholds: config.severity_thresholds
     })
 
-    configVersion.value = response.data.version
-    updatedAt.value = response.data.updated_at
+    cloudStatus.version = response.data.version
+    cloudStatus.updated_at = response.data.updated_at
+    cloudStatus.source = 'web'
+
+    // 更新同步状态
+    deviceStatus.synced = deviceStatus.version >= cloudStatus.version
 
     // 显示成功提示
     saveSuccess.value = true
@@ -320,11 +492,11 @@ async function resetToDefaults() {
 
   try {
     const response = await axios.post(`${apiBase}/config/reset`)
-    configVersion.value = response.data.version
-    updatedAt.value = response.data.updated_at
+    cloudStatus.version = response.data.version
+    cloudStatus.updated_at = response.data.updated_at
 
-    // 重新加载配置
-    await loadConfig()
+    // 重新加载状态
+    await loadStatus()
   } catch (error) {
     console.error('重置配置失败:', error)
   }
@@ -340,6 +512,15 @@ function formatTime(isoString: string | null | undefined): string {
   }
 }
 
+function getSourceLabel(source: string): string {
+  switch (source) {
+    case 'default': return '默认配置'
+    case 'device': return '设备上传'
+    case 'web': return '网页修改'
+    default: return source
+  }
+}
+
 function getSeverityColor(level: number): string {
   const colors = [
     'bg-gray-600',
@@ -351,7 +532,15 @@ function getSeverityColor(level: number): string {
 }
 
 onMounted(() => {
-  loadConfig()
+  loadStatus()
+  // 每 5 秒刷新一次状态
+  refreshInterval = window.setInterval(loadStatus, 5000)
+})
+
+onUnmounted(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+  }
 })
 </script>
 

@@ -3,10 +3,12 @@ Tremor Guard - Config API
 震颤卫士 - 参数配置接口
 
 用于管理震颤检测参数的云端配置
-ESP32 设备可通过 GET /api/config/current 拉取最新配置
+- ESP32 通过 POST /api/config/upload 上传当前配置
+- ESP32 通过 GET /api/config/current 拉取最新配置
+- 前端通过 POST /api/config/save 修改配置
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import List, Optional
@@ -56,6 +58,18 @@ class ConfigSaveRequest(BaseModel):
     severity_thresholds: Optional[List[float]] = None
 
 
+class DeviceConfigUpload(BaseModel):
+    """设备上传配置请求"""
+    device_id: str = Field(default="esp32_001", description="设备ID")
+    config_version: int = Field(default=0, description="设备当前配置版本")
+    rms_min: float
+    rms_max: float
+    power_threshold: float
+    freq_min: float
+    freq_max: float
+    severity_thresholds: List[float]
+
+
 # ============================================================
 # 全局配置存储 (Global Config Storage)
 # ============================================================
@@ -63,58 +77,141 @@ class ConfigSaveRequest(BaseModel):
 # 默认配置
 DEFAULT_CONFIG = TremorConfig()
 
-# 当前配置 (内存存储)
-current_config = TremorConfig()
-config_version = 1
-config_updated_at = datetime.now().isoformat()
+# 云端配置 (用于下发给设备)
+cloud_config = TremorConfig()
+cloud_config_version = 1
+cloud_config_updated_at = datetime.now().isoformat()
+cloud_config_source = "default"  # 配置来源: default, device, web
+
+# 设备上报的配置 (设备当前实际使用的配置)
+device_config: Optional[TremorConfig] = None
+device_config_version = 0
+device_last_seen = None
+device_ip = None
+device_id = None
 
 
 # ============================================================
-# API 接口 (API Endpoints)
+# 设备端 API (Device API)
 # ============================================================
+
+@router.post("/upload")
+async def upload_device_config(request: Request, data: DeviceConfigUpload):
+    """
+    设备上传当前配置
+
+    ESP32 通过此接口将当前运行的配置上传到云端
+    """
+    global device_config, device_config_version, device_last_seen, device_ip, device_id
+    global cloud_config, cloud_config_version, cloud_config_updated_at, cloud_config_source
+
+    # 更新设备配置信息
+    device_config = TremorConfig(
+        rms_min=data.rms_min,
+        rms_max=data.rms_max,
+        power_threshold=data.power_threshold,
+        freq_min=data.freq_min,
+        freq_max=data.freq_max,
+        severity_thresholds=data.severity_thresholds
+    )
+    device_config_version = data.config_version
+    device_last_seen = datetime.now().isoformat()
+    device_ip = request.client.host if request.client else "unknown"
+    device_id = data.device_id
+
+    # 如果云端配置是默认的，则用设备配置初始化
+    if cloud_config_source == "default":
+        cloud_config = device_config.model_copy()
+        cloud_config_version = device_config_version + 1
+        cloud_config_updated_at = datetime.now().isoformat()
+        cloud_config_source = "device"
+
+    # 检查是否有新配置需要下发
+    need_update = cloud_config_version > device_config_version
+
+    return {
+        "status": "ok",
+        "message": "配置已接收",
+        "device_version": device_config_version,
+        "cloud_version": cloud_config_version,
+        "need_update": need_update,
+        "server_time": datetime.now().isoformat()
+    }
+
 
 @router.get("/current", response_model=ConfigResponse)
 async def get_current_config():
     """
-    获取当前配置
+    获取当前云端配置
 
     ESP32 设备通过此接口拉取最新的震颤检测参数
     """
     return ConfigResponse(
-        version=config_version,
-        updated_at=config_updated_at,
-        params=current_config
+        version=cloud_config_version,
+        updated_at=cloud_config_updated_at,
+        params=cloud_config
     )
+
+
+# ============================================================
+# 前端 API (Web API)
+# ============================================================
+
+@router.get("/status")
+async def get_config_status():
+    """
+    获取配置状态概览
+
+    前端用于显示设备和云端配置状态
+    """
+    return {
+        "cloud": {
+            "version": cloud_config_version,
+            "updated_at": cloud_config_updated_at,
+            "source": cloud_config_source,
+            "params": cloud_config.model_dump()
+        },
+        "device": {
+            "connected": device_last_seen is not None,
+            "version": device_config_version,
+            "last_seen": device_last_seen,
+            "ip": device_ip,
+            "device_id": device_id,
+            "params": device_config.model_dump() if device_config else None,
+            "synced": device_config_version >= cloud_config_version if device_config else False
+        }
+    }
 
 
 @router.post("/save")
 async def save_config(request: ConfigSaveRequest):
     """
-    保存配置参数
+    保存配置参数 (前端调用)
 
     前端调用此接口保存修改后的参数
     只更新提供的字段，未提供的保持原值
     """
-    global current_config, config_version, config_updated_at
+    global cloud_config, cloud_config_version, cloud_config_updated_at, cloud_config_source
 
     # 更新配置 (只更新提供的字段)
     update_data = request.model_dump(exclude_none=True)
 
     if update_data:
         # 创建新配置
-        current_data = current_config.model_dump()
+        current_data = cloud_config.model_dump()
         current_data.update(update_data)
-        current_config = TremorConfig(**current_data)
+        cloud_config = TremorConfig(**current_data)
 
         # 更新版本和时间
-        config_version += 1
-        config_updated_at = datetime.now().isoformat()
+        cloud_config_version += 1
+        cloud_config_updated_at = datetime.now().isoformat()
+        cloud_config_source = "web"
 
     return {
         "status": "ok",
-        "message": "配置已保存",
-        "version": config_version,
-        "updated_at": config_updated_at
+        "message": "配置已保存，设备需执行 update 命令同步",
+        "version": cloud_config_version,
+        "updated_at": cloud_config_updated_at
     }
 
 
@@ -123,17 +220,18 @@ async def reset_config():
     """
     重置为默认配置
     """
-    global current_config, config_version, config_updated_at
+    global cloud_config, cloud_config_version, cloud_config_updated_at, cloud_config_source
 
-    current_config = TremorConfig()
-    config_version += 1
-    config_updated_at = datetime.now().isoformat()
+    cloud_config = TremorConfig()
+    cloud_config_version += 1
+    cloud_config_updated_at = datetime.now().isoformat()
+    cloud_config_source = "default"
 
     return {
         "status": "ok",
         "message": "配置已重置为默认值",
-        "version": config_version,
-        "updated_at": config_updated_at
+        "version": cloud_config_version,
+        "updated_at": cloud_config_updated_at
     }
 
 
@@ -154,17 +252,4 @@ async def get_default_config():
             "freq_max": "震颤频率上限 (Hz)",
             "severity_thresholds": "严重度分级阈值 (g) - [0级/1级/2级/3级分界点]"
         }
-    }
-
-
-@router.get("/history")
-async def get_config_history():
-    """
-    获取配置变更历史
-
-    TODO: 实现配置历史记录功能
-    """
-    return {
-        "message": "配置历史功能开发中",
-        "current_version": config_version
     }
