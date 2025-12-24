@@ -5,6 +5,7 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -110,17 +111,18 @@ router.beforeEach((to, _from, next) => {
   // 设置页面标题
   document.title = `${to.meta.title || '震颤卫士'} | Tremor Guard`
 
-  // TODO: 添加认证检查
-  // const authStore = useAuthStore()
-  // if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-  //   next({ name: 'login', query: { redirect: to.fullPath } })
-  // } else if (to.meta.guest && authStore.isAuthenticated) {
-  //   next({ name: 'dashboard' })
-  // } else {
-  //   next()
-  // }
+  // 认证检查
+  const authStore = useAuthStore()
 
-  next()
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    // 需要认证但未登录，跳转到登录页
+    next({ name: 'login', query: { redirect: to.fullPath } })
+  } else if (to.meta.guest && authStore.isAuthenticated) {
+    // 游客页面但已登录，跳转到仪表盘
+    next({ name: 'dashboard' })
+  } else {
+    next()
+  }
 })
 
 export default router

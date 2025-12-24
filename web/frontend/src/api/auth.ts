@@ -25,9 +25,10 @@ export const authApi = {
 
   /**
    * 用户注册
+   * 注册成功后直接返回 Token（自动登录）
    */
-  async register(data: RegisterRequest): Promise<User> {
-    const response = await apiClient.post<User>('/auth/register', data)
+  async register(data: RegisterRequest): Promise<TokenResponse> {
+    const response = await apiClient.post<TokenResponse>('/auth/register', data)
     return response.data
   },
 

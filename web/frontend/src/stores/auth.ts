@@ -28,10 +28,8 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authApi.login(email, password)
       token.value = response.access_token
+      user.value = response.user
       localStorage.setItem('token', response.access_token)
-
-      // 获取用户信息
-      await fetchUser()
       return true
     } catch (e: any) {
       error.value = e.response?.data?.detail || '登录失败'
@@ -46,7 +44,11 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      await authApi.register({ email, username, password, full_name: fullName })
+      const response = await authApi.register({ email, username, password, full_name: fullName })
+      // 注册成功后自动登录
+      token.value = response.access_token
+      user.value = response.user
+      localStorage.setItem('token', response.access_token)
       return true
     } catch (e: any) {
       error.value = e.response?.data?.detail || '注册失败'
@@ -66,10 +68,27 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function refreshToken() {
+    try {
+      const response = await authApi.refreshToken()
+      token.value = response.access_token
+      user.value = response.user
+      localStorage.setItem('token', response.access_token)
+      return true
+    } catch (e) {
+      logout()
+      return false
+    }
+  }
+
   function logout() {
     user.value = null
     token.value = null
     localStorage.removeItem('token')
+  }
+
+  function clearError() {
+    error.value = null
   }
 
   // 初始化时获取用户信息
@@ -93,6 +112,8 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     register,
     fetchUser,
+    refreshToken,
     logout,
+    clearError,
   }
 })
