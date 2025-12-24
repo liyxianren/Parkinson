@@ -59,7 +59,7 @@
 // 心跳设置 (Heartbeat Settings)
 // ============================================================
 
-#define HEARTBEAT_INTERVAL_MS       60000       // 心跳间隔 (1分钟)
+#define HEARTBEAT_INTERVAL_MS       300000      // 心跳间隔 (5分钟)
 #define HEARTBEAT_ENABLED           true        // 是否启用心跳
 
 // ============================================================
