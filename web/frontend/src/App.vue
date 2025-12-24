@@ -1,14 +1,8 @@
 <script setup lang="ts">
-import { RouterView, useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { RouterView } from 'vue-router'
 
-const route = useRoute()
-
-// 根据路由深度和方向决定过渡动画
-const transitionName = computed(() => {
-  // 可以根据需要实现更复杂的过渡逻辑
-  return 'fade-up'
-})
+// 页面过渡动画名称
+const transitionName = 'fade-up'
 </script>
 
 <template>

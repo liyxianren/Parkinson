@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useTremorStore } from '@/stores/tremor'
-import { useAuthStore } from '@/stores/auth'
 import { getSeverityLabel, getSeverityColor } from '@/types'
 import AppLayout from '@/layouts/AppLayout.vue'
 
 const tremorStore = useTremorStore()
-const authStore = useAuthStore()
 
 const loading = ref(true)
 

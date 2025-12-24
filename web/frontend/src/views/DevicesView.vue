@@ -139,14 +139,6 @@ function getBatteryColor(level: number | null) {
   return 'text-red-500'
 }
 
-function getBatteryBgColor(level: number | null) {
-  if (level === null) return 'bg-gray-100'
-  if (level >= 80) return 'bg-mint-100'
-  if (level >= 50) return 'bg-mint-50'
-  if (level >= 20) return 'bg-amber-100'
-  return 'bg-red-100'
-}
-
 onMounted(() => {
   fetchDevices()
 })

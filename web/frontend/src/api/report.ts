@@ -3,7 +3,17 @@
  * 震颤卫士 - 报告 API
  */
 
-import { apiClient, handleApiError } from './client'
+import apiClient from './index'
+import axios from 'axios'
+
+// 错误处理辅助函数
+function handleApiError(error: unknown): Error {
+  if (axios.isAxiosError(error)) {
+    const message = error.response?.data?.detail || error.message
+    return new Error(message)
+  }
+  return error instanceof Error ? error : new Error('Unknown error')
+}
 
 // 类型定义
 export type ReportType = 'daily' | 'weekly' | 'monthly' | 'custom'
