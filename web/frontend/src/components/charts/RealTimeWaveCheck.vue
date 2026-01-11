@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed } from 'vue'
 import {
   Chart as ChartJS,
   Title,
@@ -105,7 +105,7 @@ const chartData = computed(() => {
   }
 })
 
-import { computed } from 'vue'
+
 </script>
 
 <template>

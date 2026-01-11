@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 
 const severity = ref(0)
-const isDragging = ref(false)
+
 
 const handleInput = (e: Event) => {
   const target = e.target as HTMLInputElement

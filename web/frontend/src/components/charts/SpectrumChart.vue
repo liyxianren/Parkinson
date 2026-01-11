@@ -31,7 +31,7 @@ const chartOptions = {
       text: '频率分布 (FFT)',
       font: {
           size: 14,
-          weight: 'normal'
+          weight: 'normal' as const
       },
       color: '#6B7280'
     }

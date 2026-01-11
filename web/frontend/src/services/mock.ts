@@ -4,7 +4,7 @@
  */
 
 import { reactive } from 'vue'
-import type { TremorData, Session, DailyStats } from '@/types'
+import type { TremorData } from '@/types'
 
 // 模拟配置
 export const mockConfig = reactive({
@@ -18,9 +18,9 @@ export const mockConfig = reactive({
 
 class MockService {
     private timer: number | null = null
-    private subscribers: Function[] = []
 
     // 模拟数据生成器
+    // @ts-ignore
     generateWavePoint(timestamp: number): number {
         // 基础噪声
         let value = (Math.random() - 0.5) * mockConfig.noiseLevel
@@ -48,6 +48,7 @@ class MockService {
             date.setDate(date.getDate() - i)
 
             // 模拟波动：早起症状轻，下午重
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const dailyBase = 0.5 + Math.random() * 0.5
 
             data.push({
@@ -105,11 +106,9 @@ class MockService {
             const data: TremorData = {
                 id: now,
                 timestamp: new Date().toISOString(),
-                device_id: 'SIM_DEVICE_01',
-                session_id: 'SIM_SESSION_01',
-                raw_x: amplitude,
-                raw_y: amplitude * 0.8,
-                raw_z: amplitude * 1.2,
+                session_id: 1, // Mock session ID (number)
+                valid: true,
+                out_of_range: false,
                 detected: rms > 0.3,
                 frequency: mockConfig.tremorFrequency + (Math.random() - 0.5),
                 amplitude: amplitude,

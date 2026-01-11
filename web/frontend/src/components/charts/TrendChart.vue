@@ -11,7 +11,7 @@ import {
   CategoryScale,
   LinearScale
 } from 'chart.js'
-import { Bar, Line } from 'vue-chartjs'
+import { Bar } from 'vue-chartjs'
 
 ChartJS.register(
   CategoryScale,
@@ -44,7 +44,7 @@ const chartOptions = {
       align: 'start' as const,
       font: {
           size: 16,
-          weight: 'bold'
+          weight: 'bold' as const
       }
     }
   },
@@ -96,7 +96,7 @@ const chartData = computed(() => {
         yAxisID: 'y1',
         borderRadius: 4
       }
-    ]
+    ] as any[]
   }
 })
 </script>
