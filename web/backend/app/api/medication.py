@@ -74,7 +74,7 @@ class DosageScheduleItem(BaseModel):
 # Medication Endpoints
 # ============================================================
 
-@router.get("/", response_model=List[MedicationResponse])
+@router.get("", response_model=List[MedicationResponse])
 async def list_medications(
     current_user: User = Depends(get_current_user_from_token),
     db: AsyncSession = Depends(get_db)
@@ -87,7 +87,7 @@ async def list_medications(
     )
     return result.scalars().all()
 
-@router.post("/", response_model=MedicationResponse)
+@router.post("", response_model=MedicationResponse)
 async def create_medication(
     med_data: MedicationCreate,
     current_user: User = Depends(get_current_user_from_token),
