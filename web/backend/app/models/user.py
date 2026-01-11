@@ -35,3 +35,7 @@ class User(Base):
     # 关系
     devices = relationship("Device", back_populates="owner")
     tremor_sessions = relationship("TremorSession", back_populates="user")
+    medications = relationship("Medication", back_populates="user")
+    dosage_records = relationship("DosageRecord", back_populates="user")
+    training_plans = relationship("TrainingPlan", back_populates="user")
+    training_check_ins = relationship("TrainingCheckIn", back_populates="user")

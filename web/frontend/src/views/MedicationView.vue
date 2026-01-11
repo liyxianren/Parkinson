@@ -747,7 +747,7 @@ function getCorrelationStrength(score: number): { text: string; color: string } 
                   <span class="text-gray-500">频率</span>
                   <span class="text-gray-800">{{ MEDICATION_FREQUENCY_LABELS[medication.frequency] }}</span>
                 </div>
-                <div v-if="medication.scheduled_times.length > 0" class="flex justify-between">
+                <div v-if="medication.scheduled_times && medication.scheduled_times.length > 0" class="flex justify-between">
                   <span class="text-gray-500">服药时间</span>
                   <span class="text-gray-800">{{ medication.scheduled_times.join(', ') }}</span>
                 </div>

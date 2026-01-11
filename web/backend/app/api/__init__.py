@@ -16,3 +16,7 @@ api_router.include_router(data.router, prefix="/data", tags=["数据"])
 api_router.include_router(analysis.router, prefix="/analysis", tags=["分析"])
 api_router.include_router(ai.router, prefix="/ai", tags=["AI"])
 api_router.include_router(report.router, prefix="/report", tags=["报告"])
+from app.api import medication
+api_router.include_router(medication.router, prefix="/medication", tags=["用药"])
+from app.api import rehabilitation
+api_router.include_router(rehabilitation.router, prefix="/rehabilitation", tags=["康复"])

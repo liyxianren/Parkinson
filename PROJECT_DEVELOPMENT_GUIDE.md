@@ -52,7 +52,7 @@
 │  │  Hardware   │    │   Backend    │    │     AI      │    │  Frontend   │ │
 │  ├─────────────┤    ├──────────────┤    ├─────────────┤    ├─────────────┤ │
 │  │             │    │              │    │             │    │             │ │
-│  │ ESP32-C3    │    │ FastAPI/     │    │ Claude API  │    │ React +     │ │
+│  │ ESP32-C3    │    │ FastAPI/     │    │ Claude API  │    │ Vue 3 +     │ │
 │  │ +           │───►│ Express      │───►│ +           │───►│ TypeScript  │ │
 │  │ MPU6050     │WiFi│ +            │    │ RAG         │    │ +           │ │
 │  │             │    │ PostgreSQL/  │    │ 知识库      │    │ Tailwind    │ │
@@ -92,10 +92,10 @@
 ### 前端 (Frontend)
 | 技术 | 用途 |
 |-----|------|
-| React 18 | UI 框架 |
+| Vue 3 | UI 框架 |
 | TypeScript | 类型安全 |
 | Tailwind CSS | 样式 |
-| Chart.js / ECharts | 数据可视化 |
+| Chart.js / Vue-Chartjs | 数据可视化 |
 | Axios | HTTP 请求 |
 | Socket.IO Client | WebSocket 通信 |
 
@@ -337,7 +337,7 @@ void uploadData(int16_t* accel, int16_t* gyro, int16_t temp) {
 
 ## 3.1 技术选型 (Technology Selection)
 
-### 推荐方案 A: Python + FastAPI (推荐)
+### 推荐方案 A: Python + FastAPI (已选定 / Selected)
 
 ```
 优势:
@@ -352,7 +352,7 @@ void uploadData(int16_t* accel, int16_t* gyro, int16_t temp) {
 - 数据处理: NumPy, SciPy, Pandas
 ```
 
-### 推荐方案 B: Node.js + Express
+### 备选方案 B: Node.js + Express (已弃用 / Deprecated)
 
 ```
 优势:
