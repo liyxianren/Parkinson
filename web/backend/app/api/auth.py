@@ -126,7 +126,16 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
 
 async def authenticate_user(db: AsyncSession, email: str, password: str) -> Optional[User]:
     """验证用户"""
+    # 清理输入
+    email = email.strip()
+    
+    # 先尝试通过邮箱查找
     user = await get_user_by_email(db, email)
+    
+    # 如果没找到，尝试通过用户名查找
+    if not user:
+        user = await get_user_by_username(db, email)
+        
     if not user:
         return None
     if not verify_password(password, user.hashed_password):

@@ -120,7 +120,7 @@ async function handleLogin() {
             <!-- Email -->
             <div>
               <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
-                邮箱地址
+                账户 (邮箱或用户名)
               </label>
               <div class="input-group">
                 <svg class="input-icon w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,11 +128,11 @@ async function handleLogin() {
                 </svg>
                 <input
                   id="email"
-                  v-model="email"
-                  type="email"
+                  v-model.trim="email"
+                  type="text"
                   required
                   class="input"
-                  placeholder="your@email.com"
+                  placeholder="邮箱地址或用户名"
                 />
               </div>
             </div>

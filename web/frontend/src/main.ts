@@ -10,6 +10,7 @@ import App from './App.vue'
 import router from './router'
 
 import './styles/main.css'
+import './assets/animations.css'
 
 const app = createApp(App)
 

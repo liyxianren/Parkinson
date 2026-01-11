@@ -11,11 +11,11 @@ export const authApi = {
    * 用户登录
    */
   async login(email: string, password: string): Promise<TokenResponse> {
-    const formData = new FormData()
-    formData.append('username', email)
-    formData.append('password', password)
+    const params = new URLSearchParams()
+    params.append('username', email)
+    params.append('password', password)
 
-    const response = await apiClient.post<TokenResponse>('/auth/login', formData, {
+    const response = await apiClient.post<TokenResponse>('/auth/login', params, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },

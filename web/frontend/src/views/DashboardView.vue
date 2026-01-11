@@ -1,73 +1,74 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useTremorStore } from '@/stores/tremor'
-import { getSeverityLabel, getSeverityColor } from '@/types'
 import AppLayout from '@/layouts/AppLayout.vue'
-
-const tremorStore = useTremorStore()
+import TrendChart from '@/components/charts/TrendChart.vue'
+import { mockService } from '@/services/mock'
+import { getSeverityLabel, getSeverityColor } from '@/types'
 
 const loading = ref(true)
 
-// 计算属性
-const stats = computed(() => {
-  if (tremorStore.todayStats) {
-    return {
-      todayAnalyses: tremorStore.todayStats.total_analyses,
-      todayTremors: tremorStore.todayStats.tremor_detections,
-      avgSeverity: tremorStore.todayStats.avg_severity,
-      maxSeverity: tremorStore.todayStats.max_severity,
-      detectionRate: tremorStore.todayStats.detection_rate,
-      totalSessions: tremorStore.todayStats.total_sessions,
-    }
-  }
-  return {
-    todayAnalyses: 0,
-    todayTremors: 0,
-    avgSeverity: 0,
-    maxSeverity: 0,
-    detectionRate: 0,
-    totalSessions: 0,
-  }
+// Mock Data
+const stats = ref({
+    todayAnalyses: 12,
+    todayTremors: 45,
+    avgSeverity: 1.8,
+    maxSeverity: 3,
+    detectionRate: 25,
+    totalSessions: 4
 })
 
-const recentSessions = computed(() => {
-  return tremorStore.sessions.slice(0, 5).map(session => ({
-    id: session.id,
-    start: new Date(session.start_time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-    duration: session.duration_seconds
-      ? `${Math.floor(session.duration_seconds / 60)}分钟`
-      : '进行中',
-    tremors: session.tremor_count,
-    maxSeverity: session.max_severity,
-    isActive: session.is_active,
-  }))
+const trendData = ref<{ labels: string[], severity: number[], counts: number[] }>({
+    labels: [], severity: [], counts: []
 })
+
+const recentSessions = ref<any[]>([])
 
 onMounted(async () => {
   loading.value = true
-  try {
-    await Promise.all([
-      tremorStore.fetchTodayStats(),
-      tremorStore.fetchSessions(10)
-    ])
-  } finally {
-    loading.value = false
-  }
+  
+  // Simulate API delay
+  setTimeout(() => {
+      // Load Trend Data
+      const history = mockService.generateTrendData(7)
+      trendData.value.labels = history.map(d => {
+          const date = new Date(d.date)
+          return `${date.getMonth()+1}-${date.getDate()}`
+      })
+      trendData.value.severity = history.map(d => d.avg_severity)
+      trendData.value.counts = history.map(d => d.tremor_count)
+      
+      // Load Recent Sessions
+      recentSessions.value = [
+          { id: 1, start: '14:30', duration: '15分钟', tremors: 12, maxSeverity: 2, isActive: false },
+          { id: 2, start: '10:15', duration: '20分钟', tremors: 5, maxSeverity: 1, isActive: false },
+          { id: 3, start: '08:45', duration: '10分钟', tremors: 28, maxSeverity: 3, isActive: false },
+      ]
+      
+      loading.value = false
+  }, 600)
 })
+
 </script>
 
 <template>
   <AppLayout>
     <div class="space-y-6">
-      <!-- Loading State -->
-      <div v-if="loading" class="flex items-center justify-center h-64">
-        <div class="text-center">
-          <div class="relative w-16 h-16 mx-auto mb-4">
-            <div class="absolute inset-0 rounded-full border-4 border-primary-100"></div>
-            <div class="absolute inset-0 rounded-full border-4 border-primary-500 border-t-transparent animate-spin"></div>
+      
+      <!-- Welcome Header -->
+      <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-800">下午好，李先生</h1>
+            <p class="text-gray-500 mt-1">这里是您的今日震颤监测概览</p>
           </div>
-          <p class="text-gray-500">加载数据中...</p>
-        </div>
+          <div class="text-right hidden md:block">
+              <p class="text-sm text-gray-500">上次同步</p>
+              <p class="font-medium text-gray-700">刚刚</p>
+          </div>
+      </div>
+
+      <div v-if="loading" class="flex items-center justify-center h-64">
+        <!-- Keep loading state simple -->
+        <div class="text-center text-gray-500">加载中...</div>
       </div>
 
       <template v-else>
@@ -164,146 +165,64 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Recent Sessions -->
-        <div class="card">
-          <div class="flex items-center justify-between mb-6">
-            <div>
-              <h2 class="text-xl font-bold text-gray-800">最近检测记录</h2>
-              <p class="text-sm text-gray-500 mt-1">您最近的震颤监测会话</p>
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left: Trend Chart -->
+            <div class="lg:col-span-2">
+                <div class="card h-full">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="font-bold text-gray-800 text-lg">本周震颤趋势</h3>
+                        <select class="px-3 py-1 bg-warmGray-50 border border-warmGray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-100">
+                            <option>近7天</option>
+                            <option>近30天</option>
+                        </select>
+                    </div>
+                    <TrendChart 
+                        :date-labels="trendData.labels" 
+                        :severity-data="trendData.severity"
+                        :tremor-count-data="trendData.counts"
+                    />
+                </div>
             </div>
-            <RouterLink to="/history" class="btn btn-ghost btn-sm">
-              查看全部
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
-            </RouterLink>
-          </div>
 
-          <div v-if="recentSessions.length === 0" class="empty-state">
-            <div class="w-20 h-20 bg-warmGray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg class="w-10 h-10 text-warmGray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
+            <!-- Right: Activity & Tips -->
+            <div class="space-y-6">
+                 <!-- Recent Sessions List -->
+                 <div class="card">
+                     <div class="flex items-center justify-between mb-4">
+                         <h3 class="font-bold text-gray-800">最近记录</h3>
+                         <RouterLink to="/history" class="text-sm text-primary-600 hover:text-primary-700 font-medium">查看全部</RouterLink>
+                     </div>
+                     <div class="space-y-3">
+                         <div v-for="session in recentSessions" :key="session.id" class="flex items-center justify-between p-3 bg-warmGray-50 rounded-xl hover:bg-white hover:shadow-sm transition-all cursor-pointer border border-transparent hover:border-warmGray-100">
+                             <div class="flex items-center gap-3">
+                                 <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-500 shadow-sm text-xs font-bold">
+                                     {{ session.start }}
+                                 </div>
+                                 <div>
+                                     <p class="text-sm font-bold text-gray-800">{{ session.duration }}</p>
+                                     <p class="text-xs text-gray-500">{{ session.tremors }}次震颤</p>
+                                 </div>
+                             </div>
+                             <span class="severity-badge scale-90" :class="`severity-${session.maxSeverity}`">
+                                {{ getSeverityLabel(session.maxSeverity) }}
+                             </span>
+                         </div>
+                     </div>
+                 </div>
+
+                 <!-- AI Assistant Card -->
+                 <div class="card-gradient !from-lavender-50 !to-lavender-100/50 border border-lavender-100 relative overflow-hidden">
+                      <div class="relative z-10">
+                          <h3 class="font-bold text-gray-800 mb-2">AI 健康助手</h3>
+                          <p class="text-sm text-gray-600 mb-4">基于您的一周数据，AI 分析建议您适当增加上午的康复训练时长。</p>
+                          <RouterLink to="/ai-assistant" class="btn btn-lavender btn-sm w-full">咨询 AI 助手</RouterLink>
+                      </div>
+                      <div class="absolute -bottom-4 -right-4 w-24 h-24 bg-lavender-200/50 rounded-full blur-xl"></div>
+                 </div>
             </div>
-            <h3 class="text-lg font-semibold text-gray-600 mb-2">暂无检测记录</h3>
-            <p class="text-gray-400 mb-6">开始您的第一次震颤监测吧</p>
-            <RouterLink to="/monitor" class="btn btn-primary">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              开始监测
-            </RouterLink>
-          </div>
-
-          <div v-else class="table-container !shadow-none !rounded-none">
-            <table class="table table-striped">
-              <thead>
-                <tr>
-                  <th>时间</th>
-                  <th>时长</th>
-                  <th>震颤次数</th>
-                  <th>最高严重度</th>
-                  <th>状态</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(session, index) in recentSessions"
-                  :key="session.id"
-                  class="animate-fade-in-up"
-                  :style="{ animationDelay: `${index * 50}ms` }"
-                >
-                  <td class="font-medium">{{ session.start }}</td>
-                  <td>{{ session.duration }}</td>
-                  <td>
-                    <span class="font-semibold">{{ session.tremors }}</span>
-                  </td>
-                  <td>
-                    <span class="severity-badge" :class="`severity-${session.maxSeverity}`">
-                      {{ getSeverityLabel(session.maxSeverity) }}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      :class="[
-                        'badge',
-                        session.isActive ? 'badge-success' : 'bg-warmGray-100 text-gray-600'
-                      ]"
-                    >
-                      <span v-if="session.isActive" class="w-2 h-2 bg-mint-500 rounded-full animate-pulse mr-1.5"></span>
-                      {{ session.isActive ? '进行中' : '已完成' }}
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
         </div>
 
-        <!-- Quick Actions -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <RouterLink
-            to="/monitor"
-            class="card-gradient group cursor-pointer !p-8 text-center hover:shadow-glow transition-all duration-300"
-          >
-            <div class="w-20 h-20 bg-gradient-to-br from-mint-400 to-mint-500 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-soft group-hover:scale-105 transition-transform">
-              <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">开始监测</h3>
-            <p class="text-gray-500">实时震颤检测与分析</p>
-          </RouterLink>
-
-          <RouterLink
-            to="/ai-assistant"
-            class="card-gradient group cursor-pointer !p-8 text-center hover:shadow-glow transition-all duration-300"
-          >
-            <div class="w-20 h-20 bg-gradient-to-br from-lavender-400 to-lavender-500 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-soft group-hover:scale-105 transition-transform">
-              <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">AI 助手</h3>
-            <p class="text-gray-500">获取智能健康建议</p>
-          </RouterLink>
-
-          <RouterLink
-            to="/reports"
-            class="card-gradient group cursor-pointer !p-8 text-center hover:shadow-glow transition-all duration-300"
-          >
-            <div class="w-20 h-20 bg-gradient-to-br from-primary-400 to-primary-500 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-soft group-hover:scale-105 transition-transform">
-              <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">生成报告</h3>
-            <p class="text-gray-500">导出专业健康报告</p>
-          </RouterLink>
-        </div>
-
-        <!-- Tips Section -->
-        <div class="card-gradient !p-6 relative overflow-hidden">
-          <div class="absolute -top-8 -right-8 w-24 h-24 bg-primary-200/50 rounded-full"></div>
-          <div class="absolute -bottom-4 -left-4 w-16 h-16 bg-primary-100/50 rounded-full"></div>
-
-          <div class="relative flex items-start gap-4">
-            <div class="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <h3 class="font-semibold text-gray-800 mb-1">健康小贴士</h3>
-              <p class="text-gray-600 text-sm leading-relaxed">
-                规律的运动和充足的睡眠有助于减轻帕金森症状。建议每天保持适度的体育活动，
-                如散步、太极或瑜伽。同时，保持乐观的心态也很重要。
-              </p>
-            </div>
-          </div>
-        </div>
       </template>
     </div>
   </AppLayout>

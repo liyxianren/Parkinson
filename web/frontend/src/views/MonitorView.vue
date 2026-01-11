@@ -5,6 +5,8 @@ import { getSeverityLabel, getSeverityColor } from '@/types'
 import AppLayout from '@/layouts/AppLayout.vue'
 import type { TremorData } from '@/types'
 import { dataApi } from '@/api/data'
+import { mockService, mockConfig } from '@/services/mock'
+import RealTimeWaveCheck from '@/components/charts/RealTimeWaveCheck.vue'
 
 const tremorStore = useTremorStore()
 
@@ -12,22 +14,49 @@ const tremorStore = useTremorStore()
 const loading = ref(false)
 const error = ref<string | null>(null)
 const deviceId = ref('ESP32_DEFAULT')
+const useMock = ref(true) // 默认开启模拟模式
+const isMocking = ref(false)
 
 // 图表数据
-const chartData = ref<{ time: string; amplitude: number; severity: number }[]>([])
-const maxChartPoints = 60
+const waveData = ref<number[]>([]) // 用于绘制波形
+const maxChartPoints = 100 // 增加点数以获得更平滑的波形
 
 // 自动刷新
 const refreshInterval = ref<number | null>(null)
-const refreshRate = 2000 // 2秒刷新一次
+const refreshRate = 2000 // 2秒刷新一次后端状态
 
 // 计算属性
-const isMonitoring = computed(() => tremorStore.currentSession?.is_active ?? false)
+const isMonitoring = computed(() => {
+    return useMock.value ? isMocking.value : tremorStore.currentSession?.is_active ?? false
+})
+
 const currentSession = computed(() => tremorStore.currentSession)
 const recentData = computed(() => tremorStore.recentData)
 const latestReading = computed(() => tremorStore.latestReading)
 
+// 模拟状态下的统计数据
+const mockStats = ref({
+    duration: 0,
+    tremorCount: 0,
+    totalAnalyses: 0,
+    avgSeverity: 0,
+    maxSeverity: 0
+})
+
 const sessionStats = computed(() => {
+  if (useMock.value) {
+      return {
+        totalAnalyses: mockStats.value.totalAnalyses,
+        tremorCount: mockStats.value.tremorCount,
+        detectionRate: mockStats.value.totalAnalyses > 0
+          ? ((mockStats.value.tremorCount / mockStats.value.totalAnalyses) * 100).toFixed(1)
+          : 0,
+        avgSeverity: mockStats.value.avgSeverity.toFixed(2),
+        maxSeverity: mockStats.value.maxSeverity,
+        duration: mockStats.value.duration
+      }
+  }
+
   if (!currentSession.value) {
     return {
       totalAnalyses: 0,
@@ -52,29 +81,49 @@ const sessionStats = computed(() => {
 })
 
 const currentSeverity = computed(() => {
+  if (useMock.value) {
+      // 模拟模式下根据波形振幅判断
+      const lastVal = Math.abs(waveData.value[waveData.value.length - 1] || 0)
+      if (lastVal > 1.5) return 4
+      if (lastVal > 1.0) return 3
+      if (lastVal > 0.5) return 2
+      if (lastVal > 0.2) return 1
+      return 0
+  }
+
   if (!latestReading.value || !latestReading.value.detected) return 0
   return latestReading.value.severity
 })
 
 const currentFrequency = computed(() => {
+  if (useMock.value) return mockConfig.tremorFrequency
   if (!latestReading.value) return null
   return latestReading.value.frequency
 })
 
 const currentAmplitude = computed(() => {
+   if (useMock.value) {
+       return Math.abs(waveData.value[waveData.value.length - 1] || 0)
+   }
   if (!latestReading.value) return null
   return latestReading.value.rms_amplitude
 })
 
 // 方法
 async function startMonitoring() {
+  if (useMock.value) {
+      isMocking.value = true
+      startMockSimulation()
+      return
+  }
+
   loading.value = true
   error.value = null
 
   try {
     await tremorStore.startSession(deviceId.value)
     tremorStore.clearRecentData()
-    chartData.value = []
+    waveData.value = []
     startAutoRefresh()
   } catch (e: any) {
     error.value = e.response?.data?.detail || '启动监测失败'
@@ -84,6 +133,12 @@ async function startMonitoring() {
 }
 
 async function stopMonitoring() {
+  if (useMock.value) {
+      isMocking.value = false
+      stopMockSimulation()
+      return
+  }
+
   if (!currentSession.value) return
 
   loading.value = true
@@ -107,6 +162,60 @@ function toggleMonitoring() {
   }
 }
 
+// 模拟相关逻辑
+let mockTimer: number | null = null
+function startMockSimulation() {
+    waveData.value = new Array(maxChartPoints).fill(0)
+    mockStats.value = { duration: 0, tremorCount: 0, totalAnalyses: 0, avgSeverity: 0, maxSeverity: 0 }
+    
+    // 启动 service 模拟
+    mockService.startSimulation((data) => {
+        // 更新波形数据
+        waveData.value.push(data.amplitude)
+        if (waveData.value.length > maxChartPoints) {
+            waveData.value.shift()
+        }
+
+        // 更新统计 (低频更新，避免刷新过快)
+        mockStats.value.totalAnalyses++
+        if (data.detected) mockStats.value.tremorCount++
+        
+        // 移动平均严重度
+        const n = mockStats.value.totalAnalyses
+        const prevAvg = mockStats.value.avgSeverity
+        mockStats.value.avgSeverity = prevAvg + (data.severity - prevAvg) / n
+        
+        mockStats.value.maxSeverity = Math.max(mockStats.value.maxSeverity, data.severity)
+        
+        // 模拟最近记录 (每20次数据点存一次，即每秒1条)
+        if (mockStats.value.totalAnalyses % 20 === 0) {
+            const record = { ...data, id: Date.now() } // ensure unique key
+            tremorStore.recentData.unshift(record)
+            if (tremorStore.recentData.length > 50) tremorStore.recentData.pop()
+        }
+    })
+
+    // 计时器
+    mockTimer = window.setInterval(() => {
+        mockStats.value.duration++
+    }, 1000)
+}
+
+function stopMockSimulation() {
+    mockService.stopSimulation()
+    if (mockTimer) clearInterval(mockTimer)
+}
+
+// 模拟配置控制
+function setMockTremor(level: number) {
+    if (level === 0) {
+        mockConfig.tremorIntensity = 0
+    } else {
+        // 简单映射：1级=0.2, 2级=0.4, 3级=0.6, 4级=0.8
+        mockConfig.tremorIntensity = level * 0.2
+    }
+}
+
 async function refreshData() {
   if (!currentSession.value) return
 
@@ -116,25 +225,15 @@ async function refreshData() {
 
     const data = await dataApi.getSessionData(currentSession.value.id, 50)
     tremorStore.recentData = data
+    
+    // 更新真实数据的图表
+    const points = data.slice().reverse().map(d => d.rms_amplitude || 0)
+    while (points.length < maxChartPoints) points.unshift(0)
+    waveData.value = points.slice(-maxChartPoints)
 
-    updateChartData(data)
   } catch (e) {
     console.error('刷新数据失败:', e)
   }
-}
-
-function updateChartData(data: TremorData[]) {
-  const newPoints = data
-    .slice()
-    .reverse()
-    .map(d => ({
-      time: formatTime(d.timestamp),
-      amplitude: d.rms_amplitude || 0,
-      severity: d.severity
-    }))
-    .slice(-maxChartPoints)
-
-  chartData.value = newPoints
 }
 
 function startAutoRefresh() {
@@ -165,28 +264,36 @@ function formatDuration(seconds: number) {
 
 // 生命周期
 onMounted(async () => {
-  try {
-    const sessions = await dataApi.getHistory({ limit: 1 })
-    const activeSession = sessions.find(s => s.is_active)
-    if (activeSession) {
-      tremorStore.setCurrentSession(activeSession)
-      await refreshData()
-      startAutoRefresh()
-    }
-  } catch (e) {
-    console.error('获取会话失败:', e)
+  // 默认开启模拟
+  if (useMock.value) {
+      // Do nothing
+  } else {
+      try {
+        const sessions = await dataApi.getHistory({ limit: 1 })
+        const activeSession = sessions.find(s => s.is_active)
+        if (activeSession) {
+          tremorStore.setCurrentSession(activeSession)
+          await refreshData()
+          startAutoRefresh()
+        }
+      } catch (e) {
+        console.error('获取会话失败:', e)
+      }
   }
 })
 
 onUnmounted(() => {
   stopAutoRefresh()
+  stopMockSimulation()
 })
 
 watch(isMonitoring, (newVal) => {
-  if (newVal) {
-    startAutoRefresh()
-  } else {
-    stopAutoRefresh()
+  if (!useMock.value) {
+      if (newVal) {
+        startAutoRefresh()
+      } else {
+        stopAutoRefresh()
+      }
   }
 })
 </script>
@@ -200,7 +307,26 @@ watch(isMonitoring, (newVal) => {
           <h1 class="text-2xl font-bold text-gray-800">实时监测</h1>
           <p class="text-gray-500 mt-1">实时查看震颤检测数据</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-4">
+             <!-- 模式切换 -->
+             <div class="flex items-center gap-2 bg-white rounded-lg p-1 border border-warmGray-200 shadow-sm">
+                <button 
+                    @click="useMock = true"
+                    class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                    :class="useMock ? 'bg-primary-100 text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                >
+                    演示模式
+                </button>
+                <div class="w-px h-4 bg-warmGray-200"></div>
+                <button 
+                    @click="useMock = false"
+                    class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
+                    :class="!useMock ? 'bg-primary-100 text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+                >
+                    真实设备
+                </button>
+            </div>
+
           <span class="badge" :class="isMonitoring ? 'badge-success' : 'bg-warmGray-200 text-gray-600'">
             <span v-if="isMonitoring" class="w-2 h-2 bg-mint-500 rounded-full animate-pulse mr-1.5"></span>
             {{ isMonitoring ? '监测中' : '待机' }}
@@ -264,7 +390,7 @@ watch(isMonitoring, (newVal) => {
               {{ isMonitoring ? '监测进行中' : '准备就绪' }}
             </h2>
             <p class="text-gray-500 mb-8">
-              {{ isMonitoring ? '正在实时接收设备数据' : '点击下方按钮开始震颤监测' }}
+              {{ isMonitoring ? (useMock ? '正在生成模拟数据...' : '正在实时接收设备数据') : '点击下方按钮开始监测' }}
             </p>
 
             <button
@@ -290,12 +416,34 @@ watch(isMonitoring, (newVal) => {
                 <span>{{ isMonitoring ? '停止监测' : '开始监测' }}</span>
               </template>
             </button>
+            
+            <!-- 模拟控制 -->
+            <transition name="fade-up">
+                <div v-if="useMock && isMonitoring" class="mt-6 pt-6 border-t border-warmGray-100">
+                    <p class="text-sm font-medium text-gray-500 mb-3">震颤强度模拟 (仅演示)</p>
+                    <div class="flex justify-center gap-2">
+                        <button v-for="level in 5" :key="level-1"
+                            @click="setMockTremor(level-1)" 
+                            class="w-9 h-9 rounded-full font-bold transition-transform active:scale-95 border-2"
+                            :class="{
+                                'bg-green-100 text-green-700 border-green-200 hover:bg-green-200': level-1 === 0,
+                                'bg-lime-100 text-lime-700 border-lime-200 hover:bg-lime-200': level-1 === 1,
+                                'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200': level-1 === 2,
+                                'bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-200': level-1 === 3,
+                                'bg-red-100 text-red-700 border-red-200 hover:bg-red-200': level-1 === 4
+                            }"
+                        >
+                            {{ level-1 }}
+                        </button>
+                    </div>
+                </div>
+            </transition>
 
             <p class="text-sm text-gray-400 mt-4 flex items-center justify-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
               </svg>
-              设备: {{ deviceId }}
+              设备ID: {{ deviceId }}
             </p>
           </div>
 
@@ -364,35 +512,15 @@ watch(isMonitoring, (newVal) => {
           <!-- 波形图 -->
           <div class="card">
             <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-bold text-gray-800">振幅趋势</h3>
+              <h3 class="text-lg font-bold text-gray-800">实时加速度波形</h3>
               <span class="badge badge-primary">实时</span>
             </div>
-            <div class="h-52 relative bg-warmGray-50 rounded-xl p-4">
-              <div v-if="chartData.length === 0" class="absolute inset-0 flex items-center justify-center">
-                <div class="text-center text-gray-400">
-                  <div class="w-16 h-16 bg-warmGray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                  </div>
-                  <p>等待数据...</p>
-                </div>
-              </div>
-
-              <!-- 简易条形图 -->
-              <div v-else class="h-full flex items-end gap-0.5">
-                <div
-                  v-for="(point, index) in chartData"
-                  :key="index"
-                  class="flex-1 rounded-t-sm transition-all duration-200"
-                  :style="{
-                    height: `${Math.min(100, Math.max(5, point.amplitude * 500))}%`,
-                    backgroundColor: getSeverityColor(point.severity)
-                  }"
-                  :title="`${point.time}: ${point.amplitude.toFixed(3)}g`"
-                ></div>
-              </div>
-            </div>
+            
+            <RealTimeWaveCheck 
+                :data-points="waveData" 
+                :color="isMonitoring ? getSeverityColor(currentSeverity) : '#9CA3AF'"
+                :height="300"
+            />
           </div>
 
           <!-- 最近数据列表 -->

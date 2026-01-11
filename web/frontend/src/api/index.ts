@@ -8,7 +8,7 @@ import type { AxiosInstance } from 'axios'
 
 // 创建 axios 实例
 const apiClient: AxiosInstance = axios.create({
-  baseURL: '/api/v1',
+  baseURL: '/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -35,6 +35,11 @@ apiClient.interceptors.response.use(
   (error) => {
     // 401 未授权 - token 过期
     if (error.response?.status === 401) {
+      // 如果是登录接口本身的 401 错误，不进行跳转，直接返回错误让组件处理
+      if (error.config.url?.includes('/auth/login')) {
+        return Promise.reject(error)
+      }
+
       localStorage.removeItem('token')
       window.location.href = '/login'
     }

@@ -27,7 +27,11 @@ async def lifespan(app: FastAPI):
     print(f"🚀 {settings.APP_NAME} 启动中...")
     print(f"📊 环境: {settings.APP_ENV}")
 
-    # TODO: 初始化数据库连接
+    # 初始化数据库连接 (创建表)
+    from app.core.database import init_db
+    await init_db()
+    print("✅ 数据库连接已初始化")
+
     # TODO: 初始化 Redis 连接
 
     yield

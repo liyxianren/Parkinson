@@ -16,6 +16,9 @@ const menuItems = [
   { name: '历史记录', path: '/history', icon: 'history' },
   { name: '数据分析', path: '/analysis', icon: 'analysis' },
   { name: 'AI 助手', path: '/ai-assistant', icon: 'ai' },
+  { name: '用药管理', path: '/medication', icon: 'medication' },
+  { name: '健康档案', path: '/health-profile', icon: 'health' },
+  { name: '运动康复', path: '/rehabilitation', icon: 'rehabilitation' },
   { name: '设备管理', path: '/devices', icon: 'devices' },
   { name: '报告中心', path: '/reports', icon: 'reports' },
   { name: '参数配置', path: '/config', icon: 'config' },
@@ -123,6 +126,18 @@ const greeting = computed(() => {
             </svg>
             <svg v-else-if="item.icon === 'reports'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <!-- 用药管理图标 -->
+            <svg v-else-if="item.icon === 'medication'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+            <!-- 健康档案图标 -->
+            <svg v-else-if="item.icon === 'health'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <!-- 运动康复图标 -->
+            <svg v-else-if="item.icon === 'rehabilitation'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <svg v-else-if="item.icon === 'config'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />

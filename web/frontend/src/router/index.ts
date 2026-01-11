@@ -69,6 +69,24 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '报告中心', requiresAuth: true }
   },
   {
+    path: '/medication',
+    name: 'medication',
+    component: () => import('@/views/MedicationView.vue'),
+    meta: { title: '用药管理', requiresAuth: true }
+  },
+  {
+    path: '/health-profile',
+    name: 'health-profile',
+    component: () => import('@/views/HealthProfileView.vue'),
+    meta: { title: '健康档案', requiresAuth: true }
+  },
+  {
+    path: '/rehabilitation',
+    name: 'rehabilitation',
+    component: () => import('@/views/RehabilitationView.vue'),
+    meta: { title: '运动康复', requiresAuth: true }
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('@/views/SettingsView.vue'),
