@@ -54,5 +54,5 @@ ENV APP_ENV=production \
 EXPOSE 8080
 
 # 启动 FastAPI
-# 使用 uvicorn 启动，指定 host 和 port
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# 使用 python -m 启动，这样会使用 main.py 中的配置 (读取 PORT 环境变量)
+CMD ["python", "-m", "app.main"]
