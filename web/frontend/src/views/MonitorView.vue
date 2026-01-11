@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useTremorStore } from '@/stores/tremor'
 import { getSeverityLabel, getSeverityColor } from '@/types'
 import AppLayout from '@/layouts/AppLayout.vue'
-import type { TremorData } from '@/types'
+
 import { dataApi } from '@/api/data'
 import { mockService, mockConfig } from '@/services/mock'
 import RealTimeWaveCheck from '@/components/charts/RealTimeWaveCheck.vue'
@@ -171,7 +171,7 @@ function startMockSimulation() {
     // 启动 service 模拟
     mockService.startSimulation((data) => {
         // 更新波形数据
-        waveData.value.push(data.amplitude)
+        waveData.value.push(data.amplitude || 0)
         if (waveData.value.length > maxChartPoints) {
             waveData.value.shift()
         }

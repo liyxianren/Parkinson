@@ -4,7 +4,7 @@
  * 震颤卫士 - 运动康复页面
  */
 
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { useRehabilitationStore } from '@/stores/rehabilitation'
 import { EXERCISE_CATEGORY_LABELS, DIFFICULTY_LABELS } from '@/types'

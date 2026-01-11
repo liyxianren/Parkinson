@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 import TrendChart from '@/components/charts/TrendChart.vue'
 import { mockService } from '@/services/mock'

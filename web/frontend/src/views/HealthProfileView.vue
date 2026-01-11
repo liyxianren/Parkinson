@@ -4,11 +4,11 @@
  * 震颤卫士 - 健康档案页面
  */
 
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { useHealthStore } from '@/stores/health'
 import { healthApi } from '@/api/health'
-import { HOEHN_YAHR_STAGES, VISIT_TYPE_LABELS } from '@/types'
+import { HOEHN_YAHR_STAGES } from '@/types'
 import type { HealthProfile, MedicalRecord, FamilyHistory, VisitRecord } from '@/types'
 
 const healthStore = useHealthStore()

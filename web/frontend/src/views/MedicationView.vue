@@ -20,7 +20,7 @@ import {
 import AppLayout from '@/layouts/AppLayout.vue'
 import { useMedicationStore } from '@/stores/medication'
 import { medicationApi } from '@/api/medication'
-import { MEDICATION_FREQUENCY_LABELS, type Medication, type MedicationCreateRequest, type DosageRecord, type MedicationEffectiveness } from '@/types'
+import { MEDICATION_FREQUENCY_LABELS, type Medication, type MedicationCreateRequest, type MedicationEffectiveness } from '@/types'
 
 // 注册 Chart.js 组件
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
@@ -35,6 +35,7 @@ const showMedicationForm = ref(false)
 const editingMedication = ref<Medication | null>(null)
 const showDosageModal = ref(false)
 const selectedMedication = ref<Medication | null>(null)
+const selectedScheduledTime = ref<string>('')
 
 // 表单数据
 const medicationForm = ref<MedicationCreateRequest>({
@@ -175,7 +176,7 @@ async function toggleMedicationStatus(medication: Medication) {
   try {
     await medicationStore.updateMedication(medication.id, {
       is_active: !medication.is_active,
-    })
+    } as any)
   } catch (error) {
     console.error('更新药物状态失败:', error)
   }
@@ -184,6 +185,7 @@ async function toggleMedicationStatus(medication: Medication) {
 // 快速服药
 async function quickTakeMedication(schedule: any) {
   selectedMedication.value = schedule.medication
+  selectedScheduledTime.value = schedule.scheduled_time
   showDosageModal.value = true
 }
 
@@ -191,12 +193,14 @@ async function quickTakeMedication(schedule: any) {
 async function confirmTakeMedication() {
   if (!selectedMedication.value) return
   try {
-    await medicationStore.quickTakeMedication(
-      selectedMedication.value.id,
-      selectedMedication.value.dosage,
-      dosageForm.value.notes,
-      dosageForm.value.side_effects
-    )
+    await medicationStore.recordDosage({
+      medication_id: selectedMedication.value.id,
+      dosage_taken: selectedMedication.value.dosage,
+      scheduled_time: selectedScheduledTime.value,
+      status: 'taken',
+      notes: dosageForm.value.notes,
+      side_effects: dosageForm.value.side_effects
+    })
     showDosageModal.value = false
     dosageForm.value = { notes: '', side_effects: '' }
     selectedMedication.value = null
@@ -216,11 +220,7 @@ function getTimeSlot(time: string): string {
   return '夜间'
 }
 
-// 格式化日期
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
-}
+
 
 // 格式化时间
 function formatTime(dateStr: string): string {
@@ -593,16 +593,16 @@ function getCorrelationStrength(score: number): { text: string; color: string } 
         <div v-if="medicationStore.pendingDosages.length > 0" class="space-y-3">
           <div
             v-for="schedule in medicationStore.pendingDosages"
-            :key="`${schedule.medication.id}-${schedule.time}`"
+            :key="`${schedule.medication.id}-${schedule.scheduled_time}`"
             class="flex items-center justify-between p-4 bg-white rounded-xl border border-warmGray-100"
           >
             <div class="flex items-center gap-4">
               <div class="w-10 h-10 bg-primary-50 rounded-lg flex items-center justify-center">
-                <span class="text-primary-600 font-semibold">{{ schedule.time }}</span>
+                <span class="text-primary-600 font-semibold">{{ schedule.scheduled_time }}</span>
               </div>
               <div>
                 <h4 class="font-medium text-gray-800">{{ schedule.medication.name }}</h4>
-                <p class="text-sm text-gray-500">{{ schedule.medication.dosage }} · {{ getTimeSlot(schedule.time) }}</p>
+                <p class="text-sm text-gray-500">{{ schedule.medication.dosage }} · {{ getTimeSlot(schedule.scheduled_time) }}</p>
               </div>
             </div>
             <button
@@ -1102,7 +1102,7 @@ function getCorrelationStrength(score: number): { text: string; color: string } 
               <label class="block text-sm font-medium text-gray-700 mb-1">服药时间</label>
               <div class="flex flex-wrap gap-2">
                 <input
-                  v-for="(time, index) in medicationForm.scheduled_times"
+                  v-for="(_time, index) in medicationForm.scheduled_times"
                   :key="index"
                   v-model="medicationForm.scheduled_times[index]"
                   type="time"

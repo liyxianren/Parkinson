@@ -48,8 +48,7 @@ class MockService {
             date.setDate(date.getDate() - i)
 
             // 模拟波动：早起症状轻，下午重
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const dailyBase = 0.5 + Math.random() * 0.5
+            // const dailyBase = 0.5 + Math.random() * 0.5
 
             data.push({
                 date: date.toISOString(),

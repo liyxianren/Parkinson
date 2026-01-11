@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import AppLayout from '@/layouts/AppLayout.vue'
-import { aiApi, type ChatMessage, type AnalysisResponse, type InsightsResponse } from '@/api/ai'
+import { aiApi, type AnalysisResponse, type InsightsResponse } from '@/api/ai'
 import type {
   DailyAnalysis,
   PersonalizedAdvice,
   DoctorVisitReport,
   SymptomCheckRequest,
   SymptomCheckResponse,
+  ChatMessage
 } from '@/types'
 
 // 聊天相关
@@ -63,8 +64,10 @@ const quickQuestions = [
 const conversationHistory = computed(() => {
   return messages.value.map(m => ({
     role: m.role,
-    content: m.content
+    content: m.content,
+    timestamp: m.timestamp
   }))
+
 })
 
 // 方法
@@ -77,7 +80,8 @@ async function sendMessage(text?: string) {
   // 添加用户消息
   messages.value.push({
     role: 'user',
-    content: messageText
+    content: messageText,
+    timestamp: new Date().toISOString()
   })
 
   await scrollToBottom()
@@ -88,13 +92,15 @@ async function sendMessage(text?: string) {
 
     messages.value.push({
       role: 'assistant',
-      content: response.response
+      content: response.response,
+      timestamp: new Date().toISOString()
     })
   } catch (error: any) {
     const errorMessage = error.response?.data?.detail || 'AI 服务暂时不可用，请稍后再试'
     messages.value.push({
       role: 'assistant',
-      content: `抱歉，${errorMessage}`
+      content: `抱歉，${errorMessage}`,
+      timestamp: new Date().toISOString()
     })
   } finally {
     isLoading.value = false
@@ -143,7 +149,8 @@ async function loadInsights() {
 function clearChat() {
   messages.value = [{
     role: 'assistant',
-    content: '您好！我是震颤卫士 AI 助手，我可以帮助您分析震颤数据、解答健康问题。请问有什么可以帮您的？'
+    content: '您好！我是震颤卫士 AI 助手，我可以帮助您分析震颤数据、解答健康问题。请问有什么可以帮您的？',
+    timestamp: new Date().toISOString()
   }]
 }
 
@@ -225,7 +232,14 @@ async function generateDoctorReport() {
   generatingReport.value = true
   doctorReport.value = null
   try {
-    doctorReport.value = await aiApi.generateDoctorReport(reportDays.value)
+    const end = new Date()
+    const start = new Date()
+    start.setDate(end.getDate() - reportDays.value)
+    
+    doctorReport.value = await aiApi.generateDoctorReport({
+      startDate: start.toISOString().split('T')[0],
+      endDate: end.toISOString().split('T')[0]
+    })
   } catch (error) {
     console.error('生成就诊报告失败:', error)
   } finally {
@@ -289,7 +303,8 @@ onMounted(async () => {
   // 添加欢迎消息
   messages.value.push({
     role: 'assistant',
-    content: '您好！我是震颤卫士 AI 助手，我可以帮助您分析震颤数据、解答健康问题。请问有什么可以帮您的？'
+    content: '您好！我是震颤卫士 AI 助手，我可以帮助您分析震颤数据、解答健康问题。请问有什么可以帮您的？',
+    timestamp: new Date().toISOString()
   })
 
   // 加载洞察和提示

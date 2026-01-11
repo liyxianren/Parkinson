@@ -1,44 +1,58 @@
+# ========================================
+# 震颤卫士 (Tremor Guard) - 单容器部署 Dockerfile
+# 前后端合一，只需部署一个服务
+# 部署平台: Zeabur
+# ========================================
 
-# Stage 1: Build Frontend
-FROM node:18-alpine as frontend-builder
+# ============ 第一阶段：构建前端 ============
+FROM node:18-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Copy frontend dependency files
+# 复制前端依赖文件
 COPY frontend/package*.json ./
+RUN npm ci --no-audit --no-fund
 
-# Install dependencies
-RUN npm install
+# 复制前端源代码
+COPY frontend ./
 
-# Copy frontend source code
-COPY frontend/ .
-
-# Build frontend
+# 构建前端
+# VITE_API_BASE_URL 留空，使前端请求使用相对路径 (e.g. /api/...)
+# 这样前端静态文件由后端服务时，会自动请求同一域名的后端 API
+ENV VITE_API_BASE_URL=""
 RUN npm run build
 
-# Stage 2: Build Backend & Final Image
+# ============ 第二阶段：构建后端并整合前端 ============
 FROM python:3.10-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PORT=8000
+# 安装系统依赖 (如果不包含 backend/app/main.py 需要的库，可以在这里添加)
+# RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev && rm -rf /var/lib/apt/lists/*
 
-# Install backend dependencies
-COPY backend/requirements.txt .
+# 安装 Python 依赖
+COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source code
-COPY backend/ .
+# 复制后端代码
+COPY backend ./
 
-# Copy built frontend assets from Stage 1 to backend's static directory
-# app/main.py expects static files in ../static relative to app/
-COPY --from=frontend-builder /app/frontend/dist /app/static
+# 从第一阶段复制前端构建产物到后端静态目录
+# 这里将 dist 复制为 backend/app/static，因为 main.py 中定义 STATIC_DIR 为 ../static
+# main.py 相对于 app 文件夹，所以 app/../static 就是 app 同级的 static 文件夹
+# 我们直接复制到 /app/static 即可，因为 WORKDIR 是 /app
+COPY --from=frontend-builder /app/frontend/dist ./static
 
-# Expose the port
-EXPOSE 8000
+# 环境变量
+ENV APP_ENV=production \
+    PORT=8080
 
-# Start command (using shell form to expand PORT variable)
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+EXPOSE 8080
+
+# 启动 FastAPI
+# 使用 uvicorn 启动，指定 host 和 port
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
