@@ -140,7 +140,14 @@ if os.path.exists(STATIC_DIR):
         """服务前端首页"""
         index_path = os.path.join(STATIC_DIR, "index.html")
         if os.path.exists(index_path):
-            return FileResponse(index_path)
+            return FileResponse(
+                index_path, 
+                headers={
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0",
+                }
+            )
         return HTMLResponse("<h1>Tremor Guard</h1><p>Frontend not built yet.</p>")
 
     @app.get("/{path:path}")
@@ -163,7 +170,14 @@ if os.path.exists(STATIC_DIR):
         # SPA 路由回退到 index.html
         index_path = os.path.join(STATIC_DIR, "index.html")
         if os.path.exists(index_path):
-            return FileResponse(index_path)
+            return FileResponse(
+                index_path,
+                headers={
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0",
+                }
+            )
 
         return HTMLResponse("<h1>404 Not Found</h1>", status_code=404)
 
